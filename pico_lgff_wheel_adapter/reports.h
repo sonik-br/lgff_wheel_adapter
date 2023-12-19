@@ -230,9 +230,6 @@ typedef struct TU_ATTR_PACKED {
 
 } g25_report_t;
 
-
-
-
 //G27 Racing Wheel
 typedef struct TU_ATTR_PACKED {
   uint8_t hat : 4;
@@ -280,3 +277,52 @@ typedef struct TU_ATTR_PACKED {
   uint8_t : 1; // always 0
       
 } g27_report_t;
+
+//G29 Racing Wheel (PS3/PS4 switch set to "PS3")
+typedef struct TU_ATTR_PACKED {
+  // byte 1: hat/buttons
+  uint8_t hat : 4;
+  uint8_t cross : 1;
+  uint8_t square : 1;
+  uint8_t circle : 1;
+  uint8_t triangle : 1;
+
+  uint8_t R1 : 1;
+  uint8_t L1 : 1;
+  uint8_t R2 : 1;
+  uint8_t L2 : 1;
+  uint8_t share : 1;
+  uint8_t options : 1;
+  uint8_t R3 : 1;
+  uint8_t L3 : 1;
+
+  uint8_t shifter_1 : 1;
+  uint8_t shifter_2 : 1;
+  uint8_t shifter_3 : 1;
+  uint8_t shifter_4 : 1;
+  uint8_t shifter_5 : 1;
+  uint8_t shifter_6 : 1;
+  uint8_t shifter_r : 1;
+  uint8_t plus : 1;
+
+  uint8_t minus : 1;
+  uint8_t dial_cw : 1;
+  uint8_t dial_ccw : 1;
+  uint8_t enter : 1;
+  uint8_t PS : 1;
+  uint8_t : 3; // unknown
+
+  uint16_t wheel : 16;
+
+  uint8_t gasPedal;
+  uint8_t brakePedal;
+  uint8_t clutchPedal;
+
+  uint8_t shifter_x;
+  uint8_t shifter_y;
+
+  uint8_t : 6; // unknown
+  uint8_t shifter_stick_down : 1;
+  uint8_t : 1; // unknown
+
+} g29_report_t;

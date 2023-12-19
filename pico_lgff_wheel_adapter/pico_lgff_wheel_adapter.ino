@@ -526,7 +526,7 @@ void map_input(uint8_t const* report) {
     generic_report.horn = input_report->horn;
     generic_report.PS = input_report->PS;
 
-  } else if (pid == pid_dfgt) { // G25
+  } else if (pid == pid_g25) { // G25
 
     // map the received report to output report
     g25_report_t* input_report = (g25_report_t*)report;
@@ -563,7 +563,7 @@ void map_input(uint8_t const* report) {
     generic_report.shifter_r = input_report->shifter_r;
     generic_report.shifter_stick_down = input_report->shifter_stick_down;
     
-  } else if (pid == 0xc29b) { // G27
+  } else if (pid == pid_g27) { // G27
 
     // map the received report to output report
     g27_report_t* input_report = (g27_report_t*)report;
@@ -602,6 +602,49 @@ void map_input(uint8_t const* report) {
     generic_report.shifter_5 = input_report->shifter_5;
     generic_report.shifter_6 = input_report->shifter_6;
     generic_report.shifter_r = input_report->shifter_r;
+    generic_report.shifter_stick_down = input_report->shifter_stick_down;
+
+  } else if (pid == pid_g29) { // G29
+
+    // map the received report to output report
+    g29_report_t* input_report = (g29_report_t*)report;
+
+    generic_report.wheel_precision = wheel_16bits;
+    generic_report.pedals_precision_16bits = false;
+
+    generic_report.wheel_16 = input_report->wheel;
+    generic_report.gasPedal_8 = input_report->gasPedal;
+    generic_report.brakePedal_8 = input_report->brakePedal;
+    generic_report.clutchPedal_8 = input_report->clutchPedal;
+
+    generic_report.hat = input_report->hat;
+    generic_report.cross = input_report->cross;
+    generic_report.square = input_report->square;
+    generic_report.circle = input_report->circle;
+    generic_report.triangle = input_report->triangle;
+    generic_report.R1 = input_report->R1;
+    generic_report.L1 = input_report->L1;
+    generic_report.R2 = input_report->R2;
+    generic_report.L2 = input_report->L2;
+    generic_report.select = input_report->share;
+    generic_report.start = input_report->options;
+    generic_report.R3 = input_report->R3;
+    generic_report.L3 = input_report->L3;
+    generic_report.shifter_1 = input_report->shifter_1;
+    generic_report.shifter_2 = input_report->shifter_2;
+    generic_report.shifter_3 = input_report->shifter_3;
+    generic_report.shifter_4 = input_report->shifter_4;
+    generic_report.shifter_5 = input_report->shifter_5;
+    generic_report.shifter_6 = input_report->shifter_6;
+    generic_report.shifter_r = input_report->shifter_r;
+    generic_report.plus = input_report->plus;
+    generic_report.minus = input_report->minus;
+    generic_report.dial_cw = input_report->dial_cw;
+    generic_report.dial_ccw = input_report->dial_ccw;
+    generic_report.enter = input_report->enter;
+    generic_report.PS = input_report->PS;
+    generic_report.shifter_x = input_report->shifter_x;
+    generic_report.shifter_y = input_report->shifter_y;
     generic_report.shifter_stick_down = input_report->shifter_stick_down;
 
   } else if (pid == pid_ffgp) { // Formula Force GP
