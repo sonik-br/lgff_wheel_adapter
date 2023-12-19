@@ -31,21 +31,6 @@
 #include "usb_descriptors.h"
 
 
-/*
-Im not sure if its needed but I edited some TUSB options.
-Could not find a way to do this from code.
-
-tusb_option.h
-CFG_TUD_ENDPOINT0_SIZE 8
-
-tusb_config_rp2040.h
-CFG_TUD_HID_EP_BUFSIZE 8
-
-hid_host.h
-CFG_TUH_HID_EPIN_BUFSIZE 8
-CFG_TUH_HID_EPOUT_BUFSIZE 8
-*/
-
 // USB Host object
 Adafruit_USBH_Host USBHost;
 
@@ -195,7 +180,7 @@ void hid_set_report_callback(uint8_t report_id, hid_report_type_t report_type, u
       // todo check if connected device does not support leds, then don't send?
       leds_buffer = buffer[2];
     } else if (ext_cmd == 0x02 || ext_cmd == 0x03 || ext_cmd == 0x81) { // Wheel Range Change
-      // skipt for now. need to test
+      // skip for now. need to test
       return;
     } else { //mode change commands
       // skip as we curently can't change our output mode at runtime
@@ -204,7 +189,7 @@ void hid_set_report_callback(uint8_t report_id, hid_report_type_t report_type, u
   }
 
 
-  // todo handle spring effect differences for Logitech Formula Force GP nad Driving Force series?
+  // todo handle spring effect differences for Logitech Formula Force GP and Driving Force series?
 //  if ((buffer[0] == 0x00 || buffer[0] == 0x01) && buffer[1] == 0x01) { // Download Force, Download and Play Force, Spring
 //  }
 
