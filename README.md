@@ -13,7 +13,7 @@ Let me know if you can help.
 ## Input/Output modes
 | Wheel                               | Input (from real hardware) | Output (emulated) |
 |-------------------------------------|----------------------------|-------------------|
-| WingMan Formula Force GP (GT Force) | No                         | Yes               |
+| WingMan Formula Force GP (GT Force) | Yes (untested)             | Yes               |
 | Driving Force                       | Yes                        | Yes               |
 | Driving Force Pro (GT Force Pro)    | Yes                        | Yes               |
 | Driving Force GT                    | Yes                        | Yes               |
@@ -61,6 +61,12 @@ Be aware that it's not possible to force a G29 into Driving Force mode.
 [GIMX](https://github.com/matlo) from by matlo
 
 This would not be possible without matlo's work on GIMX.
+
+[g29emu](https://github.com/mathijsvandenberg/g29emu) from mathijsvandenberg.
+
+[lg4ff](https://github.com/berarma/new-lg4ff) from berarma.
+
+Open Source [documents](https://opensource.logitech.com/wiki/Technical_Information/) from Logitech.
 
 Special thanks for [NolanNicholson](https://github.com/NolanNicholson) for doing the G29 data input and beta testing.
 
