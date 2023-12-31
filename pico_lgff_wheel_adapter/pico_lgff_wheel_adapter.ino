@@ -35,7 +35,7 @@
 Adafruit_USBH_Host USBHost;
 
 // USB Device object
-Adafruit_USBD_HID usb_hid(desc_hid_report, sizeof(desc_hid_report), HID_ITF_PROTOCOL_NONE, 10, true);
+Adafruit_USBD_HID usb_hid(NULL, 0, HID_ITF_PROTOCOL_NONE, 10, true);
 
 // connected device
 uint8_t wheel_addr = 0;
@@ -43,7 +43,7 @@ uint8_t wheel_idx = 0;
 
 // initialization step
 uint8_t mode_step = 0;
-lg_wheel_type change_mode_to = NONE;
+lg_wheel_type change_mode_to = NATIVE;
 init_stage_status init_stage = DISCONNECTED;
 
 // received command buffer (ffb, leds)
@@ -67,6 +67,86 @@ generic_report_t generic_report;
 
 // holds the device description
 tusb_desc_device_t desc;
+
+
+
+// default report values
+// WingMan Formula Force GP (GT Force)
+ffgp_report_t out_ffgp_report {
+  .wheel = 0x7f,
+  .pedals = 0x7f,
+  .gasPedal = 0xff,
+  .brakePedal = 0xff,
+};
+
+//Driving Force
+df_report_t out_df_report {
+  .wheel = 0x7f,
+  //.pedal_connected = 1,
+  //.power_connected = 1,
+  .pedals = 0x7f,
+  .hat = 0x08,
+  .calibated = 1,
+  //.unknown = 1,
+  .gasPedal = 0xff,
+  .brakePedal = 0xff
+};
+
+//Driving Force Pro (GT Force Pro)
+dfp_report_t out_dfp_report {
+  .wheel = 0x7f,
+  .hat = 0x08,
+  .pedals = 0x7f,
+  .gasPedal = 0xff,
+  .brakePedal = 0xff,
+  .pedal_connected = 1,
+  .power_connected = 1,
+  .calibated = 1,
+  .unknown = 1,
+};
+
+//Driving Force GT
+dfgt_report_t out_dfgt_report {
+  .hat = 0x08,
+  .pedal_connected = 1,
+  .power_connected = 1,
+  .calibated = 1,
+  .unknown = 0x5,
+  .wheel = 0x7f,
+  .gasPedal = 0xff,
+  .brakePedal = 0xff,
+};
+
+//G25 Racing Wheel
+g25_report_t out_g25_report {
+  .hat = 0x08,
+  .pedal_disconnected = 0,
+  .power_connected = 1,
+  .wheel = 0x7f,
+  .gasPedal = 0xff,
+  .brakePedal = 0xff,
+  .clutchPedal = 0xff,
+  .shifter_x = 0x80,
+  .shifter_y = 0x80,
+  .shifter = 1,
+  .unknown = 1
+};
+
+//G27 Racing Wheel
+g27_report_t out_g27_report {
+  .hat = 0x08,
+  .wheel = 0x7f,
+  .gasPedal = 0xff,
+  .brakePedal = 0xff,
+  .clutchPedal = 0xff,
+  .shifter_x = 0x80,
+  .shifter_y = 0x80,
+  .pedal_disconnected = 0,
+  .calibrated = 1,
+  .shifter_connected = 1,
+  .unknown = 1,
+};
+
 
 void set_led(bool value) {
   #ifdef LED_BUILTIN
@@ -107,10 +187,10 @@ void receive_device_descriptor(tuh_xfer_t *xfer) {
   else if ( (pid_df == pid) && (0x1000 == (desc.bcdDevice & 0xf000)) ) // DFP in compatibility mode
     change_mode_to = DFP;
   else // native mode
-    change_mode_to = NONE;
+    change_mode_to = NATIVE;
 
   // force a specific mode
-  if (force_input_mode != NONE) {
+  if (force_input_mode != NATIVE) {
     if (force_input_mode == DF && pid != pid_df)
       change_mode_to = force_input_mode;
     else if (force_input_mode == DFP && pid != pid_dfp)
@@ -124,7 +204,7 @@ void receive_device_descriptor(tuh_xfer_t *xfer) {
     else if (force_input_mode == G29 && pid != pid_g29)
       change_mode_to = force_input_mode;
     else
-      change_mode_to = NONE;
+      change_mode_to = NATIVE;
   }
 
   #ifdef BOARD_RGB_PIN
@@ -224,7 +304,7 @@ void tuh_hid_umount_cb(uint8_t dev_addr, uint8_t idx) {
     
     // set next stage
     init_stage = DISCONNECTED;
-    change_mode_to = NONE;
+    change_mode_to = NATIVE;
     
     tud_disconnect(); // disconnect to host
     memset(&generic_report, 0, sizeof(generic_report));
@@ -270,14 +350,57 @@ void setup() {
     TinyUSB_Device_Init(0);
   #endif
 
-  usb_hid.setReportCallback(NULL, hid_set_report_callback);
-
   // set usb device properties
-  TinyUSBDevice.setID(0x046d, usb_product_id);
   TinyUSBDevice.setManufacturerDescriptor("Logitech");
-  TinyUSBDevice.setProductDescriptor(usb_string_product);
-  TinyUSBDevice.setVersion(usb_bcd_version); // Set bcdUSB version e.g 1.0, 2.0, 2.1
-  TinyUSBDevice.setDeviceVersion(usb_bcd_device_version); // Set bcdDevice version
+  //usb_hid.setPollInterval(10);
+  //usb_hid.enableOutEndpoint(true);
+
+  switch (output_mode) {
+    case WHEEL_T_FFGP:
+      TinyUSBDevice.setID(0x046d, pid_ffgp);
+      TinyUSBDevice.setProductDescriptor(usb_ffgp_string_product);
+      TinyUSBDevice.setVersion(usb_ffgp_bcd_version); // Set bcdUSB version e.g 1.0, 2.0, 2.1
+      TinyUSBDevice.setDeviceVersion(usb_ffgp_bcd_device_version); // Set bcdDevice version
+      usb_hid.setReportDescriptor(desc_ffgp_hid_report, sizeof(desc_ffgp_hid_report));
+      break;
+    case WHEEL_T_DF:
+      TinyUSBDevice.setID(0x046d, pid_df);
+      TinyUSBDevice.setProductDescriptor(usb_df_string_product);
+      TinyUSBDevice.setVersion(usb_df_bcd_version); // Set bcdUSB version e.g 1.0, 2.0, 2.1
+      TinyUSBDevice.setDeviceVersion(usb_df_bcd_device_version); // Set bcdDevice version
+      usb_hid.setReportDescriptor(desc_df_hid_report, sizeof(desc_df_hid_report));
+      break;
+    case WHEEL_T_DFP:
+      TinyUSBDevice.setID(0x046d, pid_dfp);
+      TinyUSBDevice.setProductDescriptor(usb_dfp_string_product);
+      TinyUSBDevice.setVersion(usb_dfp_bcd_version); // Set bcdUSB version e.g 1.0, 2.0, 2.1
+      TinyUSBDevice.setDeviceVersion(usb_dfp_bcd_device_version); // Set bcdDevice version
+      usb_hid.setReportDescriptor(desc_dfp_hid_report, sizeof(desc_dfp_hid_report));
+      break;
+    case WHEEL_T_DFGT:
+      TinyUSBDevice.setID(0x046d, pid_dfgt);
+      TinyUSBDevice.setProductDescriptor(usb_dfgt_string_product);
+      TinyUSBDevice.setVersion(usb_dfgt_bcd_version); // Set bcdUSB version e.g 1.0, 2.0, 2.1
+      TinyUSBDevice.setDeviceVersion(usb_dfgt_bcd_device_version); // Set bcdDevice version
+      usb_hid.setReportDescriptor(desc_dfgt_hid_report, sizeof(desc_dfgt_hid_report));
+      break;
+    case WHEEL_T_G25:
+      TinyUSBDevice.setID(0x046d, pid_g25);
+      TinyUSBDevice.setProductDescriptor(usb_g25_string_product);
+      TinyUSBDevice.setVersion(usb_g25_bcd_version); // Set bcdUSB version e.g 1.0, 2.0, 2.1
+      TinyUSBDevice.setDeviceVersion(usb_g25_bcd_device_version); // Set bcdDevice version
+      usb_hid.setReportDescriptor(desc_g25_hid_report, sizeof(desc_g25_hid_report));
+      break;
+    case WHEEL_T_G27:
+      TinyUSBDevice.setID(0x046d, pid_g27);
+      TinyUSBDevice.setProductDescriptor(usb_g27_string_product);
+      TinyUSBDevice.setVersion(usb_g27_bcd_version); // Set bcdUSB version e.g 1.0, 2.0, 2.1
+      TinyUSBDevice.setDeviceVersion(usb_g27_bcd_device_version); // Set bcdDevice version
+      usb_hid.setReportDescriptor(desc_g27_hid_report, sizeof(desc_g27_hid_report));
+      break;
+  }
+
+  usb_hid.setReportCallback(NULL, hid_set_report_callback);
 
   tud_disconnect();
   usb_hid.begin();
@@ -289,7 +412,7 @@ void setup() {
 
 void loop() {
   static uint8_t last_cmd_buffer[7] { 0x00 };
-  static output_report_t last_report { 0x00 };
+  static generic_report_t last_report { 0x00 };
 
   //initialization
 
@@ -329,7 +452,7 @@ void loop() {
         init_stage = RESTARTING; // set next stage
         
         // no mode change was sent. wheel must be in native mode now. starts receiving inputs!
-        if (change_mode_to == NONE) {
+        if (change_mode_to == NATIVE) {
           init_stage = READY; // set next stage
           set_led(LOW);
           delay(1000);
@@ -348,10 +471,33 @@ void loop() {
 
   // send hid report to host
   if (usb_hid.ready()) {
-    if (memcmp(&last_report, &out_report, sizeof(out_report))) {
-      usb_hid.sendReport(0, &out_report, sizeof(out_report));
-      memcpy(&last_report, &out_report, sizeof(out_report));
+    if (memcmp(&last_report, &generic_report, sizeof(generic_report))) {
+      memcpy(&last_report, &generic_report, sizeof(generic_report));
+      switch (output_mode) {
+        case WHEEL_T_FFGP:
+          usb_hid.sendReport(0, &out_ffgp_report, sizeof(out_ffgp_report));
+          break;
+        case WHEEL_T_DF:
+          usb_hid.sendReport(0, &out_df_report, sizeof(out_df_report));
+          break;
+        case WHEEL_T_DFP:
+          usb_hid.sendReport(0, &out_dfp_report, sizeof(out_dfp_report));
+          break;
+        case WHEEL_T_DFGT:
+          usb_hid.sendReport(0, &out_dfgt_report, sizeof(out_dfgt_report));
+          break;
+        case WHEEL_T_G25:
+          usb_hid.sendReport(0, &out_g25_report, sizeof(out_g25_report));
+          break;
+        case WHEEL_T_G27:
+          usb_hid.sendReport(0, &out_g27_report, sizeof(out_g27_report));
+          break;
+      }
     }
+//    if (memcmp(&last_report, &out_report, sizeof(out_report))) {
+//      usb_hid.sendReport(0, &out_report, sizeof(out_report));
+//      memcpy(&last_report, &out_report, sizeof(out_report));
+//    }
   }
   
   // send command to device
@@ -657,20 +803,23 @@ void map_input(uint8_t const* report) {
 void map_output() {
   // shift axis values
   const bool pedals_output_precision_16bits = false;
+  uint8_t wheel_output_precision;
 
-  #if WHEEL_TYPE == WHEEL_T_FFGP
-    const uint8_t wheel_output_precision = wheel_10bits;
-  #elif WHEEL_TYPE == WHEEL_T_DF
-    const uint8_t wheel_output_precision = wheel_10bits;
-  #elif WHEEL_TYPE == WHEEL_T_DFP
-    const uint8_t wheel_output_precision = wheel_14bits;
-  #elif WHEEL_TYPE == WHEEL_T_DFGT
-    const uint8_t wheel_output_precision = wheel_14bits; //wheel_16bits;
-  #elif WHEEL_TYPE == WHEEL_T_G25
-    const uint8_t wheel_output_precision = wheel_14bits;
-  #elif WHEEL_TYPE == WHEEL_T_G27
-    const uint8_t wheel_output_precision = wheel_14bits;
-  #endif
+  switch (output_mode) {
+    case WHEEL_T_FFGP:
+    case WHEEL_T_DF:
+      wheel_output_precision = wheel_10bits;
+      break;
+    case WHEEL_T_DFP:
+    case WHEEL_T_DFGT:
+    case WHEEL_T_G25:
+    case WHEEL_T_G27:
+      wheel_output_precision = wheel_14bits;
+      break;
+    default:
+      wheel_output_precision = wheel_14bits;
+      break;
+  }
 
   uint16_t wheel;
   uint16_t gas;
@@ -725,64 +874,186 @@ void map_output() {
       clutch = generic_report.clutchPedal_16 >> 8;
   }
 
-  // all wheels
-  out_report.wheel = wheel;
-  out_report.gasPedal = gas;
-  out_report.brakePedal = brake;
-  out_report.cross = generic_report.cross;
-  out_report.square = generic_report.square;
-  out_report.circle = generic_report.circle;
-  out_report.triangle = generic_report.triangle;
-  out_report.R1 = generic_report.R1;
-  out_report.L1 = generic_report.L1;
+  switch (output_mode) {
+    case WHEEL_T_FFGP:
+      map_ffgp_out(wheel, gas, brake, clutch);
+      break;
+    case WHEEL_T_DF:
+      map_df_out(wheel, gas, brake, clutch);
+      break;
+    case WHEEL_T_DFP:
+      map_dfp_out(wheel, gas, brake, clutch);
+      break;
+    case WHEEL_T_DFGT:
+      map_dfgt_out(wheel, gas, brake, clutch);
+      break;
+    case WHEEL_T_G25:
+      map_g25_out(wheel, gas, brake, clutch);
+      break;
+    case WHEEL_T_G27:
+      map_g27_out(wheel, gas, brake, clutch);
+      break;
+  }
+}
 
-  // all wheels except te FFGP
-  #if WHEEL_TYPE != WHEEL_T_FFGP
-    out_report.hat = generic_report.hat;
-    out_report.R2 = generic_report.R2;
-    out_report.L2 = generic_report.L2;
-    out_report.select = generic_report.select;
-    out_report.start = generic_report.start;
-    out_report.R3 = generic_report.R3;
-    out_report.L3 = generic_report.L3;
-  #endif
+void map_ffgp_out(uint16_t wheel, uint16_t gas, uint16_t brake, uint16_t clutch) {
+  out_ffgp_report.wheel = wheel;
+  out_ffgp_report.gasPedal = gas;
+  out_ffgp_report.brakePedal = brake;
+  out_ffgp_report.cross = generic_report.cross;
+  out_ffgp_report.square = generic_report.square;
+  out_ffgp_report.circle = generic_report.circle;
+  out_ffgp_report.triangle = generic_report.triangle;
+  out_ffgp_report.R1 = generic_report.R1;
+  out_ffgp_report.L1 = generic_report.L1;
 
-  #if WHEEL_TYPE == WHEEL_T_FFGP || WHEEL_TYPE == WHEEL_T_DF || WHEEL_TYPE == WHEEL_T_DFP
-    //combined pedals. mid: 0x7F. gas pulls to 0x0, brake pulls to 0xFF;
-    out_report.pedals = (~(out_report.brakePedal>>1) - ~(out_report.gasPedal>>1)) + 0x7f;
-  #endif
+  //combined pedals. mid: 0x7F. gas pulls to 0x0, brake pulls to 0xFF;
+  out_ffgp_report.pedals = (~(out_ffgp_report.brakePedal>>1) - ~(out_ffgp_report.gasPedal>>1)) + 0x7f;
+}
 
-  #if WHEEL_TYPE == WHEEL_T_DFP || WHEEL_TYPE == WHEEL_T_DFGT
-    out_report.gear_minus = generic_report.gear_minus;
-    out_report.gear_plus = generic_report.gear_plus;
-  #endif
+void map_df_out(uint16_t wheel, uint16_t gas, uint16_t brake, uint16_t clutch) {
+  out_df_report.wheel = wheel;
+  out_df_report.gasPedal = gas;
+  out_df_report.brakePedal = brake;
+  out_df_report.cross = generic_report.cross;
+  out_df_report.square = generic_report.square;
+  out_df_report.circle = generic_report.circle;
+  out_df_report.triangle = generic_report.triangle;
+  out_df_report.R1 = generic_report.R1;
+  out_df_report.L1 = generic_report.L1;
 
-  #if WHEEL_TYPE == WHEEL_T_DFGT
-    out_report.enter = generic_report.enter;
-    out_report.plus = generic_report.plus;
-    out_report.dial_cw = generic_report.dial_cw;
-    out_report.dial_ccw = generic_report.dial_ccw;
-    out_report.minus = generic_report.minus;
-    out_report.horn = generic_report.horn;
-    out_report.PS = generic_report.PS;
-  #endif
+  out_df_report.hat = generic_report.hat;
+  out_df_report.R2 = generic_report.R2;
+  out_df_report.L2 = generic_report.L2;
+  out_df_report.select = generic_report.select;
+  out_df_report.start = generic_report.start;
+  out_df_report.R3 = generic_report.R3;
+  out_df_report.L3 = generic_report.L3;
 
-  #if WHEEL_TYPE == WHEEL_T_G27
-    out_report.R4 = generic_report.R4;
-    out_report.L5 = generic_report.L5;
-  #endif
+  //combined pedals. mid: 0x7F. gas pulls to 0x0, brake pulls to 0xFF;
+  out_df_report.pedals = (~(out_df_report.brakePedal>>1) - ~(out_df_report.gasPedal>>1)) + 0x7f;
+}
+
+void map_dfp_out(uint16_t wheel, uint16_t gas, uint16_t brake, uint16_t clutch) {
+  out_dfp_report.wheel = wheel;
+  out_dfp_report.gasPedal = gas;
+  out_dfp_report.brakePedal = brake;
+  out_dfp_report.cross = generic_report.cross;
+  out_dfp_report.square = generic_report.square;
+  out_dfp_report.circle = generic_report.circle;
+  out_dfp_report.triangle = generic_report.triangle;
+  out_dfp_report.R1 = generic_report.R1;
+  out_dfp_report.L1 = generic_report.L1;
+
+  out_dfp_report.hat = generic_report.hat;
+  out_dfp_report.R2 = generic_report.R2;
+  out_dfp_report.L2 = generic_report.L2;
+  out_dfp_report.select = generic_report.select;
+  out_dfp_report.start = generic_report.start;
+  out_dfp_report.R3 = generic_report.R3;
+  out_dfp_report.L3 = generic_report.L3;
+
+  //combined pedals. mid: 0x7F. gas pulls to 0x0, brake pulls to 0xFF;
+  out_dfp_report.pedals = (~(out_dfp_report.brakePedal>>1) - ~(out_dfp_report.gasPedal>>1)) + 0x7f;
+
+  out_dfp_report.gear_minus = generic_report.gear_minus;
+  out_dfp_report.gear_plus = generic_report.gear_plus;
+}
+
+void map_dfgt_out(uint16_t wheel, uint16_t gas, uint16_t brake, uint16_t clutch) {
+  out_dfgt_report.wheel = wheel;
+  out_dfgt_report.gasPedal = gas;
+  out_dfgt_report.brakePedal = brake;
+  out_dfgt_report.cross = generic_report.cross;
+  out_dfgt_report.square = generic_report.square;
+  out_dfgt_report.circle = generic_report.circle;
+  out_dfgt_report.triangle = generic_report.triangle;
+  out_dfgt_report.R1 = generic_report.R1;
+  out_dfgt_report.L1 = generic_report.L1;
+
+  out_dfgt_report.hat = generic_report.hat;
+  out_dfgt_report.R2 = generic_report.R2;
+  out_dfgt_report.L2 = generic_report.L2;
+  out_dfgt_report.select = generic_report.select;
+  out_dfgt_report.start = generic_report.start;
+  out_dfgt_report.R3 = generic_report.R3;
+  out_dfgt_report.L3 = generic_report.L3;
+
+  out_dfgt_report.gear_minus = generic_report.gear_minus;
+  out_dfgt_report.gear_plus = generic_report.gear_plus;
+
+  out_dfgt_report.enter = generic_report.enter;
+  out_dfgt_report.plus = generic_report.plus;
+  out_dfgt_report.dial_cw = generic_report.dial_cw;
+  out_dfgt_report.dial_ccw = generic_report.dial_ccw;
+  out_dfgt_report.minus = generic_report.minus;
+  out_dfgt_report.horn = generic_report.horn;
+  out_dfgt_report.PS = generic_report.PS;
+}
+
+void map_g25_out(uint16_t wheel, uint16_t gas, uint16_t brake, uint16_t clutch) {
+  out_g25_report.wheel = wheel;
+  out_g25_report.gasPedal = gas;
+  out_g25_report.brakePedal = brake;
+  out_g25_report.cross = generic_report.cross;
+  out_g25_report.square = generic_report.square;
+  out_g25_report.circle = generic_report.circle;
+  out_g25_report.triangle = generic_report.triangle;
+  out_g25_report.R1 = generic_report.R1;
+  out_g25_report.L1 = generic_report.L1;
+
+  out_g25_report.hat = generic_report.hat;
+  out_g25_report.R2 = generic_report.R2;
+  out_g25_report.L2 = generic_report.L2;
+  out_g25_report.select = generic_report.select;
+  out_g25_report.start = generic_report.start;
+  out_g25_report.R3 = generic_report.R3;
+  out_g25_report.L3 = generic_report.L3;
+
+  out_g25_report.clutchPedal = clutch;
+  out_g25_report.shifter_x = generic_report.shifter_x;
+  out_g25_report.shifter_y = generic_report.shifter_y;
+  out_g25_report.shifter_1 = generic_report.shifter_1;
+  out_g25_report.shifter_2 = generic_report.shifter_2;
+  out_g25_report.shifter_3 = generic_report.shifter_3;
+  out_g25_report.shifter_4 = generic_report.shifter_4;
+  out_g25_report.shifter_5 = generic_report.shifter_5;
+  out_g25_report.shifter_6 = generic_report.shifter_6;
+  out_g25_report.shifter_r = generic_report.shifter_r;
+  out_g25_report.shifter_stick_down = generic_report.shifter_stick_down;
+}
+
+void map_g27_out(uint16_t wheel, uint16_t gas, uint16_t brake, uint16_t clutch) {
+  out_g27_report.wheel = wheel;
+  out_g27_report.gasPedal = gas;
+  out_g27_report.brakePedal = brake;
+  out_g27_report.cross = generic_report.cross;
+  out_g27_report.square = generic_report.square;
+  out_g27_report.circle = generic_report.circle;
+  out_g27_report.triangle = generic_report.triangle;
+  out_g27_report.R1 = generic_report.R1;
+  out_g27_report.L1 = generic_report.L1;
+
+  out_g27_report.hat = generic_report.hat;
+  out_g27_report.R2 = generic_report.R2;
+  out_g27_report.L2 = generic_report.L2;
+  out_g27_report.select = generic_report.select;
+  out_g27_report.start = generic_report.start;
+  out_g27_report.R3 = generic_report.R3;
+  out_g27_report.L3 = generic_report.L3;
+
+  out_g27_report.R4 = generic_report.R4;
+  out_g27_report.L5 = generic_report.L5;
   
-  #if WHEEL_TYPE == WHEEL_T_G25 || WHEEL_TYPE == WHEEL_T_G27
-    out_report.clutchPedal = clutch;
-    out_report.shifter_x = generic_report.shifter_x;
-    out_report.shifter_y = generic_report.shifter_y;
-    out_report.shifter_1 = generic_report.shifter_1;
-    out_report.shifter_2 = generic_report.shifter_2;
-    out_report.shifter_3 = generic_report.shifter_3;
-    out_report.shifter_4 = generic_report.shifter_4;
-    out_report.shifter_5 = generic_report.shifter_5;
-    out_report.shifter_6 = generic_report.shifter_6;
-    out_report.shifter_r = generic_report.shifter_r;
-    out_report.shifter_stick_down = generic_report.shifter_stick_down;
-  #endif
+  out_g27_report.clutchPedal = clutch;
+  out_g27_report.shifter_x = generic_report.shifter_x;
+  out_g27_report.shifter_y = generic_report.shifter_y;
+  out_g27_report.shifter_1 = generic_report.shifter_1;
+  out_g27_report.shifter_2 = generic_report.shifter_2;
+  out_g27_report.shifter_3 = generic_report.shifter_3;
+  out_g27_report.shifter_4 = generic_report.shifter_4;
+  out_g27_report.shifter_5 = generic_report.shifter_5;
+  out_g27_report.shifter_6 = generic_report.shifter_6;
+  out_g27_report.shifter_r = generic_report.shifter_r;
+  out_g27_report.shifter_stick_down = generic_report.shifter_stick_down;
 }

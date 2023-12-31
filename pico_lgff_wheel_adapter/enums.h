@@ -1,12 +1,14 @@
 #pragma once
 
 // output mode
-#define WHEEL_T_FFGP 1
-#define WHEEL_T_DF   2
-#define WHEEL_T_DFP  3
-#define WHEEL_T_DFGT 4
-#define WHEEL_T_G25  5
-#define WHEEL_T_G27  6 //(need to test) endpoint size 16, interval 2
+enum lg_wheel_output_type {
+  WHEEL_T_FFGP,
+  WHEEL_T_DF,
+  WHEEL_T_DFP,
+  WHEEL_T_DFGT,
+  WHEEL_T_G25,
+  WHEEL_T_G27 //(need to test) endpoint size 16, interval 2
+};
 
 enum init_stage_status {
   DISCONNECTED,
@@ -17,7 +19,7 @@ enum init_stage_status {
 };
 
 enum lg_wheel_type {
-  NONE,
+  NATIVE,
 //  OTHER,
   DF,
   DFP,
