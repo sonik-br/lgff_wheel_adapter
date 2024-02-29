@@ -1,5 +1,6 @@
 #pragma once
 
+const uint16_t pid_fgp  = 0xc20e;
 const uint16_t pid_ffgp = 0xc293;
 const uint16_t pid_df   = 0xc294;
 const uint16_t pid_momo = 0xc295;

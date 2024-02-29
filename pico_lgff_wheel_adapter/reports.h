@@ -38,7 +38,7 @@ typedef struct TU_ATTR_PACKED {
   uint8_t shifter_x;
   uint8_t shifter_y;  
 
-  //uint8_t wheel_8;
+  uint8_t wheel_8;
   uint8_t gasPedal_8;
   uint8_t brakePedal_8;
   uint8_t clutchPedal_8;
@@ -64,6 +64,24 @@ typedef struct TU_ATTR_PACKED {
 
 } generic_report_t;
 
+
+// WingMan Formula GP
+typedef struct TU_ATTR_PACKED {
+  uint8_t wheel;
+  
+  uint8_t : 2; // padding? alwats zero
+  uint8_t L1 : 1;
+  uint8_t R1 : 1;
+  //no idea if the button mapping is correct.
+  uint8_t square : 1;   //top left.    label X. GT3: rear view
+  uint8_t triangle : 1; //top right.   label Y. GT3: ebrakePedal
+  uint8_t cross : 1;    //lower left.  label A. GT3: pause
+  uint8_t circle : 1;   //lower right. label B. GT3: reverse
+
+  uint8_t pedals; // combined pedals?
+  uint8_t gasPedal;
+  uint8_t brakePedal;
+} fgp_report_t;
 
 // WingMan Formula Force GP (GT Force)
 typedef struct TU_ATTR_PACKED {

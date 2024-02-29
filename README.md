@@ -13,6 +13,7 @@ Let me know if you can help.
 ## Input/Output modes
 | Wheel                               | Input (from real hardware) | Output (emulated) |
 |-------------------------------------|----------------------------|-------------------|
+| WingMan Formula GP (no FFB)         | Yes (untested)             | Yes               |
 | WingMan Formula Force GP (GT Force) | Yes (untested)             | Yes               |
 | Driving Force                       | Yes                        | Yes               |
 | Driving Force Pro (GT Force Pro)    | Yes                        | Yes               |

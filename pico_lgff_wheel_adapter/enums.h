@@ -2,6 +2,7 @@
 
 // output mode
 enum lg_wheel_output_type {
+  WHEEL_T_FGP,
   WHEEL_T_FFGP,
   WHEEL_T_DF,
   WHEEL_T_DFP,
@@ -34,6 +35,7 @@ enum lg_wheel_type {
 //  wheel_14bits,
 //  wheel_16bits,
 //};
-const uint8_t wheel_10bits = 0;
-const uint8_t wheel_14bits = 1;
-const uint8_t wheel_16bits = 2;
+const uint8_t wheel_8bits  = 0;
+const uint8_t wheel_10bits = 1;
+const uint8_t wheel_14bits = 2;
+const uint8_t wheel_16bits = 3;

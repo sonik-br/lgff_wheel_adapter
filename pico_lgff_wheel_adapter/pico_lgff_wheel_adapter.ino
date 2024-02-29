@@ -40,6 +40,7 @@ Adafruit_USBD_HID usb_hid(NULL, 0, HID_ITF_PROTOCOL_NONE, 10, true);
 // connected device
 uint8_t wheel_addr = 0;
 uint8_t wheel_idx = 0;
+bool wheel_supports_cmd = 0;
 
 // initialization step
 uint8_t mode_step = 0;
@@ -71,6 +72,14 @@ tusb_desc_device_t desc;
 
 
 // default report values
+// WingMan Formula GP
+fgp_report_t out_fgp_report {
+  .wheel = 0x7f,
+  .pedals = 0x7f,
+  .gasPedal = 0xff,
+  .brakePedal = 0xff,
+};
+
 // WingMan Formula Force GP (GT Force)
 ffgp_report_t out_ffgp_report {
   .wheel = 0x7f,
@@ -285,6 +294,8 @@ void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t idx, uint8_t const* report_desc,
     wheel_idx = idx;
     mode_step = 0;
 
+    wheel_supports_cmd = (pid != pid_fgp);
+
     // set next stage
     init_stage = READING_DESCRIPTOR;
 
@@ -441,6 +452,8 @@ void loop() {
     if (last_millis == 0) { // force an initial delay
       last_millis = millis();
     } else if (millis() - last_millis > 20) { // delay commands
+      if (!wheel_supports_cmd) // skip commands
+        mode_step = 255;
       if (mode_step < cmd_mode->cmd_count) {
         if (tuh_hid_send_report(wheel_addr, wheel_idx, 0, &cmd_mode->cmd[7*(mode_step)], 7)) {
           ++mode_step;
@@ -474,6 +487,9 @@ void loop() {
     if (memcmp(&last_report, &generic_report, sizeof(generic_report))) {
       memcpy(&last_report, &generic_report, sizeof(generic_report));
       switch (output_mode) {
+        case WHEEL_T_FGP:
+          usb_hid.sendReport(0, &out_fgp_report, sizeof(out_fgp_report));
+          break;
         case WHEEL_T_FFGP:
           usb_hid.sendReport(0, &out_ffgp_report, sizeof(out_ffgp_report));
           break;
@@ -502,7 +518,7 @@ void loop() {
   
   // send command to device
   if (memcmp(last_cmd_buffer, cmd_buffer, sizeof(cmd_buffer))) {
-    if (init_stage == READY && wheel_addr) {
+    if (init_stage == READY && wheel_addr && wheel_supports_cmd) {
       tuh_hid_send_report(wheel_addr, wheel_idx, 0, cmd_buffer, sizeof(cmd_buffer));
     }
     memcpy(last_cmd_buffer, cmd_buffer, sizeof(cmd_buffer));
@@ -778,6 +794,25 @@ void map_input(uint8_t const* report) {
     generic_report.shifter_y = input_report->shifter_y;
     generic_report.shifter_stick_down = input_report->shifter_stick_down;
 
+  } else if (pid == pid_fgp) { // Formula GP
+
+    // map the received report to output report
+    fgp_report_t* input_report = (fgp_report_t*)report;
+
+    generic_report.wheel_precision = wheel_8bits;
+    generic_report.pedals_precision_16bits = false;
+    
+    generic_report.wheel_8 = input_report->wheel;
+    generic_report.gasPedal_8 = input_report->gasPedal;
+    generic_report.brakePedal_8 = input_report->brakePedal;
+    
+    generic_report.cross = input_report->cross;
+    generic_report.square = input_report->square;
+    generic_report.circle = input_report->circle;
+    generic_report.triangle = input_report->triangle;
+    generic_report.R1 = input_report->R1;
+    generic_report.L1 = input_report->L1;
+
   } else if (pid == pid_ffgp) { // Formula Force GP
 
     // map the received report to output report
@@ -806,6 +841,9 @@ void map_output() {
   uint8_t wheel_output_precision;
 
   switch (output_mode) {
+    case WHEEL_T_FGP:
+      wheel_output_precision = wheel_8bits;
+      break;
     case WHEEL_T_FFGP:
     case WHEEL_T_DF:
       wheel_output_precision = wheel_10bits;
@@ -827,27 +865,43 @@ void map_output() {
   uint16_t clutch;
 
   if (wheel_output_precision == generic_report.wheel_precision) { // no conversion
-    if (generic_report.wheel_precision == wheel_10bits) {
+    if (generic_report.wheel_precision == wheel_8bits) {
+      wheel = generic_report.wheel_8;
+    } else if (generic_report.wheel_precision == wheel_10bits) {
       wheel = generic_report.wheel_10;
     } else if (generic_report.wheel_precision == wheel_14bits) {
       wheel = generic_report.wheel_14;
     } else if (generic_report.wheel_precision == wheel_16bits) {
       wheel = generic_report.wheel_16;
     }
+  } else if (generic_report.wheel_precision == wheel_8bits) {
+    if (wheel_output_precision == wheel_10bits) {
+      wheel = generic_report.wheel_8 << 2;
+    } else if (wheel_output_precision == wheel_14bits) {
+      wheel = generic_report.wheel_8 << 4;
+    } else if (wheel_output_precision == wheel_16bits) {
+      wheel = generic_report.wheel_8 << 6;
+    }
   } else if (generic_report.wheel_precision == wheel_10bits) {
-    if (wheel_output_precision == wheel_14bits) {
+    if (wheel_output_precision == wheel_8bits) {
+      wheel = generic_report.wheel_10 >> 2;
+    } else if (wheel_output_precision == wheel_14bits) {
       wheel = generic_report.wheel_10 << 4;
     } else if (wheel_output_precision == wheel_16bits) {
       wheel = generic_report.wheel_10 << 6;
     }
   } else if (generic_report.wheel_precision == wheel_14bits) {
-    if (wheel_output_precision == wheel_10bits) {
+    if (wheel_output_precision == wheel_8bits) {
+      wheel = generic_report.wheel_14 >> 6;
+    }else if (wheel_output_precision == wheel_10bits) {
       wheel = generic_report.wheel_14 >> 4;
     } else if (wheel_output_precision == wheel_16bits) {
       wheel = generic_report.wheel_14 << 2;
     }
   } else if (generic_report.wheel_precision == wheel_16bits) {
-    if (wheel_output_precision == wheel_10bits) {
+    if (wheel_output_precision == wheel_8bits) {
+      wheel = generic_report.wheel_16 >> 8;
+    } else if (wheel_output_precision == wheel_10bits) {
       wheel = generic_report.wheel_16 >> 6;
     } else if (wheel_output_precision == wheel_14bits) {
       wheel = generic_report.wheel_16 >> 2;
@@ -875,6 +929,9 @@ void map_output() {
   }
 
   switch (output_mode) {
+    case WHEEL_T_FGP:
+      map_fgp_out(wheel, gas, brake, clutch);
+      break;
     case WHEEL_T_FFGP:
       map_ffgp_out(wheel, gas, brake, clutch);
       break;
@@ -894,6 +951,21 @@ void map_output() {
       map_g27_out(wheel, gas, brake, clutch);
       break;
   }
+}
+
+void map_fgp_out(uint16_t wheel, uint16_t gas, uint16_t brake, uint16_t clutch) {
+  out_fgp_report.wheel = wheel;
+  out_fgp_report.gasPedal = gas;
+  out_fgp_report.brakePedal = brake;
+  out_fgp_report.cross = generic_report.cross;
+  out_fgp_report.square = generic_report.square;
+  out_fgp_report.circle = generic_report.circle;
+  out_fgp_report.triangle = generic_report.triangle;
+  out_fgp_report.R1 = generic_report.R1;
+  out_fgp_report.L1 = generic_report.L1;
+
+  //combined pedals. mid: 0x7F. gas pulls to 0x0, brake pulls to 0xFF;
+  out_fgp_report.pedals = (~(out_fgp_report.brakePedal>>1) - ~(out_fgp_report.gasPedal>>1)) + 0x7f;
 }
 
 void map_ffgp_out(uint16_t wheel, uint16_t gas, uint16_t brake, uint16_t clutch) {
