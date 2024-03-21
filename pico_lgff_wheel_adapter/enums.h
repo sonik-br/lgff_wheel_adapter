@@ -8,7 +8,7 @@ enum lg_wheel_output_type {
   WHEEL_T_DFP,
   WHEEL_T_DFGT,
   WHEEL_T_G25,
-  WHEEL_T_G27 //(need to test) endpoint size 16, interval 2
+  WHEEL_T_G27, //(need to test) endpoint size 16, interval 2
   WHEEL_T_SFW
 };
 
