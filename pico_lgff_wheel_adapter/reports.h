@@ -344,3 +344,25 @@ typedef struct TU_ATTR_PACKED {
   uint8_t : 1; // unknown
 
 } g29_report_t;
+
+//Speed Force Wireless (WII)
+typedef struct TU_ATTR_PACKED {
+  uint16_t wheel : 10;
+  uint8_t : 2; // vendor. allways 0x2
+  uint8_t hat_l : 1;
+  uint8_t hat_r : 1;
+  uint8_t hat_d : 1;
+  uint8_t hat_u : 1;
+
+  uint8_t plus : 1;
+  uint8_t two : 1;
+  uint8_t one : 1;
+  uint8_t b : 1;
+  uint8_t a : 1;
+  uint8_t minus : 1;
+  uint8_t home : 1;
+  uint8_t connected : 1; // 0 when not connecded? or not paired?
+
+  uint8_t gasPedal; // right paddle (released 0xff, pressed 0x00)
+  uint8_t brakePedal; // left paddle (released 0xff, pressed 0x00)
+} sfw_report_t;

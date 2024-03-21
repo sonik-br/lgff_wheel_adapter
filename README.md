@@ -21,6 +21,7 @@ Let me know if you can help.
 | G25 Racing Wheel                    | Yes                        | Yes               |
 | G27 Racing Wheel                    | Yes                        | Yes               |
 | G29 Racing Wheel                    | Yes                        | No                |
+| Speed Force Wireless                | Yes                        | Yes               |
 
 
 ## Building

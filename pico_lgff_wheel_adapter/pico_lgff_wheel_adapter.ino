@@ -44,6 +44,7 @@ bool wheel_supports_cmd = 0;
 
 // initialization step
 uint8_t mode_step = 0;
+uint8_t dongle_step = 0;
 lg_wheel_type change_mode_to = NATIVE;
 init_stage_status init_stage = DISCONNECTED;
 
@@ -156,6 +157,25 @@ g27_report_t out_g27_report {
   .unknown = 1,
 };
 
+//Speed Force Wireless
+sfw_report_t out_sfw_report {
+  .wheel = 0x7f,
+  .hat_l = 0,
+  .hat_r = 0,
+  .hat_d = 0,
+  .hat_u = 0,
+  .plus = 0,
+  .two = 0,
+  .one = 0,
+  .b = 0,
+  .a = 0,
+  .minus = 0,
+  .home = 0,
+  .connected = 1, // 0 when not connecded? or not paired?
+  .gasPedal = 0xff,
+  .brakePedal = 0xff
+};
+
 
 void set_led(bool value) {
   #ifdef LED_BUILTIN
@@ -234,7 +254,10 @@ void receive_device_descriptor(tuh_xfer_t *xfer) {
   #endif
 
   // set next stage
-  init_stage = SENDING_CMDS;
+  if (pid_sfw == pid)
+    init_stage = CONFIGURING_DONGLE;
+  else
+    init_stage = SENDING_CMDS;
 }
 
 // receive commands from host and keep them to pass to device later
@@ -293,6 +316,7 @@ void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t idx, uint8_t const* report_desc,
     wheel_addr = dev_addr;
     wheel_idx = idx;
     mode_step = 0;
+    dongle_step = 0;
 
     wheel_supports_cmd = (pid != pid_fgp);
 
@@ -312,6 +336,7 @@ void tuh_hid_umount_cb(uint8_t dev_addr, uint8_t idx) {
     wheel_addr = 0;
     wheel_idx = 0;
     mode_step = 0;
+    dongle_step = 0;
     
     // set next stage
     init_stage = DISCONNECTED;
@@ -409,6 +434,14 @@ void setup() {
       TinyUSBDevice.setDeviceVersion(usb_g27_bcd_device_version); // Set bcdDevice version
       usb_hid.setReportDescriptor(desc_g27_hid_report, sizeof(desc_g27_hid_report));
       break;
+    case WHEEL_T_SFW:
+      TinyUSBDevice.setID(0x046d, pid_sfw);
+      TinyUSBDevice.setProductDescriptor(usb_sfw_string_product);
+      TinyUSBDevice.setVersion(usb_sfw_bcd_version); // Set bcdUSB version e.g 1.0, 2.0, 2.1
+      TinyUSBDevice.setDeviceVersion(usb_sfw_bcd_device_version); // Set bcdDevice version
+      usb_hid.setReportDescriptor(desc_sfw_hid_report, sizeof(desc_sfw_hid_report));
+      // bMaxPower 0x1C (56 mA), bInterval 0x02
+      break;
   }
 
   usb_hid.setReportCallback(NULL, hid_set_report_callback);
@@ -429,8 +462,35 @@ void loop() {
 
   static uint32_t last_millis = 0;
 
-  
-  if (init_stage == SENDING_CMDS) {
+
+  if (init_stage == CONFIGURING_DONGLE) { // initialize wii wireless dongle. todo check if command was success
+
+    const uint8_t dongle_cmd_init_comm[]   = { 0xAF, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    const uint8_t dongle_cmd_change_addr[] = { 0xB2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    static uint8_t dongle_buffer[8] { 0x0 };
+
+    if (last_millis == 0) { // force an initial delay
+      last_millis = millis();
+    } else if (millis() - last_millis > 200) { // delay commands. the dongle needs a longer delay than usual
+      if (dongle_step == 0) {
+        memcpy(dongle_buffer, dongle_cmd_init_comm, sizeof(dongle_buffer));
+        if(tuh_hid_set_report(wheel_addr, wheel_idx, 0x00, HID_REPORT_TYPE_FEATURE, dongle_buffer, sizeof(dongle_buffer))) {
+          ++dongle_step;
+        }
+      } else if(dongle_step == 1) {
+        memcpy(dongle_buffer, dongle_cmd_change_addr, sizeof(dongle_buffer));
+        dongle_buffer[1] = random(0, 255); // random address
+        dongle_buffer[2] = random(0, 255);
+        if(tuh_hid_set_report(wheel_addr, wheel_idx, 0x00, HID_REPORT_TYPE_FEATURE, dongle_buffer, sizeof(dongle_buffer))) {
+          ++dongle_step;
+        }
+      } else { 
+        init_stage = SENDING_CMDS;
+      }
+      last_millis = millis();
+    }
+
+  } else if (init_stage == SENDING_CMDS) {
 
     const struct init_mode_commands *cmd_mode;
     
@@ -805,7 +865,8 @@ void map_input(uint8_t const* report) {
     generic_report.wheel_8 = input_report->wheel;
     generic_report.gasPedal_8 = input_report->gasPedal;
     generic_report.brakePedal_8 = input_report->brakePedal;
-    
+
+    generic_report.hat = 0x8;
     generic_report.cross = input_report->cross;
     generic_report.square = input_report->square;
     generic_report.circle = input_report->circle;
@@ -824,13 +885,56 @@ void map_input(uint8_t const* report) {
     generic_report.wheel_10 = input_report->wheel;
     generic_report.gasPedal_8 = input_report->gasPedal;
     generic_report.brakePedal_8 = input_report->brakePedal;
-    
+
+    generic_report.hat = 0x8;
     generic_report.cross = input_report->cross;
     generic_report.square = input_report->square;
     generic_report.circle = input_report->circle;
     generic_report.triangle = input_report->triangle;
     generic_report.R1 = input_report->R1;
     generic_report.L1 = input_report->L1;
+    
+  } else if (pid == pid_sfw) { // Speed Force Wireless
+
+    // map the received report to output report
+    sfw_report_t* input_report = (sfw_report_t*)report;
+
+    generic_report.wheel_precision = wheel_10bits;
+    generic_report.pedals_precision_16bits = false;
+
+    if (input_report->hat_u) {
+      if (input_report->hat_l)
+        generic_report.hat = 0x7;
+      else if (input_report->hat_r)
+        generic_report.hat = 0x1;
+      else
+        generic_report.hat = 0x0;
+    } else if (input_report->hat_d) {
+      if (input_report->hat_l)
+        generic_report.hat = 0x5;
+      else if (input_report->hat_r)
+        generic_report.hat = 0x3;
+      else
+        generic_report.hat = 0x4;
+    } else if (input_report->hat_l) {
+      generic_report.hat = 0x6;
+    } else if (input_report->hat_r) {
+      generic_report.hat = 0x2;
+    } else {
+      generic_report.hat = 0x8;
+    }
+    
+    generic_report.wheel_10 = input_report->wheel;
+    generic_report.gasPedal_8 = input_report->gasPedal;
+    generic_report.brakePedal_8 = input_report->brakePedal;
+    
+    generic_report.cross = input_report->b;
+    generic_report.square = input_report->one;
+    generic_report.circle = input_report->a;
+    generic_report.triangle = input_report->two;
+    generic_report.select = input_report->minus;
+    generic_report.start = input_report->plus;
+    generic_report.PS = input_report->home;
   }
   // todo add input support for the momo
 }

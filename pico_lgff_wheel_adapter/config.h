@@ -8,7 +8,7 @@
 #define PIN_USB_HOST_DP 0
 
 // emulated output wheel type
-// possible modes: WHEEL_T_FFGP, WHEEL_T_DF, WHEEL_T_DFP, WHEEL_T_DFGT, WHEEL_T_G25, WHEEL_T_G27
+// possible modes: WHEEL_T_FFGP, WHEEL_T_DF, WHEEL_T_DFP, WHEEL_T_DFGT, WHEEL_T_G25, WHEEL_T_G27, WHEEL_T_SFW
 lg_wheel_output_type output_mode = WHEEL_T_G27;
 
 // force input wheel into specific compatibility mode
