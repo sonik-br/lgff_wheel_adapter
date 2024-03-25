@@ -71,6 +71,23 @@ generic_report_t generic_report;
 tusb_desc_device_t desc;
 
 
+// persisted variables. got the idea from:
+// https://github.com/sanjay900/Santroller/blob/master/src/pico/main.cpp
+#include "hardware/watchdog.h"
+#define PERSISTED_OUTPUT_MODE_VALID 0x3A2F
+static uint32_t __uninitialized_ram(persisted_output_mode);
+static uint32_t __uninitialized_ram(persisted_output_mode_valid);
+void reset_usb(void) {
+  persisted_output_mode = output_mode;
+  persisted_output_mode_valid = PERSISTED_OUTPUT_MODE_VALID;
+  reboot();
+}
+void reboot(void) {
+  watchdog_enable(1, false);
+  for (;;) {
+  }
+}
+
 
 // default report values
 // WingMan Formula GP
@@ -160,17 +177,6 @@ g27_report_t out_g27_report {
 //Speed Force Wireless
 sfw_report_t out_sfw_report {
   .wheel = 0x7f,
-  .hat_l = 0,
-  .hat_r = 0,
-  .hat_d = 0,
-  .hat_u = 0,
-  .plus = 0,
-  .two = 0,
-  .one = 0,
-  .b = 0,
-  .a = 0,
-  .minus = 0,
-  .home = 0,
   .connected = 1, // 0 when not connecded? or not paired?
   .gasPedal = 0xff,
   .brakePedal = 0xff
@@ -293,9 +299,51 @@ void hid_set_report_callback(uint8_t report_id, hid_report_type_t report_type, u
       leds_buffer = buffer[2];
     } else if (ext_cmd == 0x02 || ext_cmd == 0x03 || ext_cmd == 0x81) { // Wheel Range Change
       // skip for now. need to test
-      return;
+//      return;
     } else { //mode change commands
       // skip as we curently can't change our output mode at runtime
+      
+      if (!auto_mode)
+        return;
+
+      // testing
+      bool detach = false;
+      lg_wheel_output_type new_mode = output_mode;
+
+      if (ext_cmd == 0x01) { // Change Mode to Driving Force Pro
+        new_mode = WHEEL_T_DFP;
+        detach = true;
+      } else if (ext_cmd == 0x10) { // Switch to G25 Identity with USB Detach
+        new_mode = WHEEL_T_G25;
+        detach = true;
+      } else if (ext_cmd == 0x11) { // Switch to G25 Identity without USB Detach
+        new_mode = WHEEL_T_G25;
+        detach = false;
+      } else if (ext_cmd == 0x09) { // Change Device Mode
+        detach = buffer[3];
+        if (buffer[2] == 0x00) { //  Logitech Driving Force EX
+          new_mode = WHEEL_T_DF;
+        } else if (buffer[2] == 0x01) { // Logitech Driving Force Pro
+          new_mode = WHEEL_T_DFP;
+        } else if (buffer[2] == 0x02) { // Logitech G25 Racing Wheel
+          new_mode = WHEEL_T_G25;
+        } else if (buffer[2] == 0x03) { // Logitech Driving Force GT
+          new_mode = WHEEL_T_DFGT;
+        } else if (buffer[2] == 0x04) { // Logitech G27 Racing Wheel
+          new_mode = WHEEL_T_G27;
+        }
+      }
+
+      if (new_mode != output_mode) {
+        if (detach)
+          tud_disconnect();
+        delay(500); // testing. probably not needed.
+        output_mode = new_mode;
+        if (detach) {
+          reset_usb();
+        }
+      }
+      
       return;
     }
   }
@@ -349,6 +397,10 @@ void tuh_hid_umount_cb(uint8_t dev_addr, uint8_t idx) {
       ledStrip.fill( WS2812::RGB(0, 0, 0) );
       ledStrip.show();
     #endif
+    
+    persisted_output_mode_valid = 0x0;
+    reboot();
+  
   }
 }
 
@@ -386,12 +438,23 @@ void setup() {
     TinyUSB_Device_Init(0);
   #endif
 
+  // change output mode if it was persisted during a reboot
+  if (persisted_output_mode_valid == PERSISTED_OUTPUT_MODE_VALID)
+    output_mode = static_cast<lg_wheel_output_type>(persisted_output_mode);
+
   // set usb device properties
   TinyUSBDevice.setManufacturerDescriptor("Logitech");
   //usb_hid.setPollInterval(10);
   //usb_hid.enableOutEndpoint(true);
 
   switch (output_mode) {
+    case WHEEL_T_FGP:
+      TinyUSBDevice.setID(0x046d, pid_fgp);
+      TinyUSBDevice.setProductDescriptor(usb_fgp_string_product);
+      TinyUSBDevice.setVersion(usb_fgp_bcd_version); // Set bcdUSB version e.g 1.0, 2.0, 2.1
+      TinyUSBDevice.setDeviceVersion(usb_fgp_bcd_device_version); // Set bcdDevice version
+      usb_hid.setReportDescriptor(desc_fgp_hid_report, sizeof(desc_fgp_hid_report));
+      break;
     case WHEEL_T_FFGP:
       TinyUSBDevice.setID(0x046d, pid_ffgp);
       TinyUSBDevice.setProductDescriptor(usb_ffgp_string_product);
@@ -442,6 +505,24 @@ void setup() {
       usb_hid.setReportDescriptor(desc_sfw_hid_report, sizeof(desc_sfw_hid_report));
       // bMaxPower 0x1C (56 mA), bInterval 0x02
       break;
+  }
+
+  // override version info
+  if (auto_mode && persisted_output_mode_valid != PERSISTED_OUTPUT_MODE_VALID) {
+    // automode allways start as a Driving Force. But keep the desired Version info
+    // only possible with some devices.
+    switch (output_mode) {
+      case WHEEL_T_DFP:
+      case WHEEL_T_DFGT:
+      case WHEEL_T_G25:
+      case WHEEL_T_G27: {
+        output_mode = WHEEL_T_DF;
+        TinyUSBDevice.setID(0x046d, pid_df);
+        TinyUSBDevice.setProductDescriptor(usb_df_string_product);
+        usb_hid.setReportDescriptor(desc_df_hid_report, sizeof(desc_df_hid_report));
+        break;
+      }
+    }
   }
 
   usb_hid.setReportCallback(NULL, hid_set_report_callback);
@@ -567,6 +648,9 @@ void loop() {
           break;
         case WHEEL_T_G27:
           usb_hid.sendReport(0, &out_g27_report, sizeof(out_g27_report));
+          break;
+        case WHEEL_T_SFW:
+          usb_hid.sendReport(0, &out_sfw_report, sizeof(out_sfw_report));
           break;
       }
     }
