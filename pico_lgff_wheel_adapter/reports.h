@@ -117,15 +117,15 @@ typedef struct TU_ATTR_PACKED {
     uint8_t start : 1;
     uint8_t R3 : 1;
     uint8_t L3 : 1;
-    uint8_t pedal_connected : 1; // not sure
-    uint8_t power_connected : 1; //not sure
+    uint8_t pedal_connected : 1; // not sure. DFWireless reports as zero
+    uint8_t power_connected : 1; //not sure. DFWireless reports as zero
 
     uint8_t pedals; // combined pedals
     uint8_t hat : 4;
     uint8_t : 1; // allways 0
     uint8_t calibated : 1; //not sure (or ready to use?)
     uint8_t : 1; // allways 0
-    uint8_t unknown : 1; // allways 1
+    uint8_t unknown : 1; // allways 1? DFWireless uses this as PS button
     uint8_t gasPedal;
     uint8_t brakePedal;
 } df_report_t;

@@ -118,6 +118,11 @@ const uint16_t usb_df_bcd_device_version = 0x0000;
 //  const char usb_string_product[] = "GT Force RX";
 //  const uint16_t usb_bcd_version = 0x0100;
 //  const uint16_t usb_bcd_device_version = 0x2200;
+
+// Driving Force Wireless
+//  const char usb_string_product[] = "PS3/USB Cordless Wheel"; // Logitech Profiler shows as Driving Force RX
+//  const uint16_t usb_bcd_version = 0x0200;
+//  const uint16_t usb_bcd_device_version = 0x2201;
   
 const uint8_t desc_df_hid_report[] = {
   0x05, 0x01,         /*  Usage Page (Desktop),                   */
@@ -180,6 +185,10 @@ const uint8_t desc_df_hid_report[] = {
   0x09, 0x03,         /*          Usage (03h),                    */
   0x91, 0x02,         /*          Output (Variable),              */
   0xC0,               /*      End Collection,                     */
+  /* Driving Force Wireless have this Feature added */
+  // 0x0A, 0xFF, 0xFF,  //   Usage (0xFFFF)
+  // 0x95, 0x08,        //   Report Count (8)
+  // 0xB1, 0x02,        //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
   0xC0                /*  End Collection                          */
 };
 
