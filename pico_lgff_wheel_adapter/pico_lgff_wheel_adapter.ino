@@ -226,20 +226,81 @@ void receive_device_descriptor(tuh_xfer_t *xfer) {
 
   // force a specific mode
   if (force_input_mode != NATIVE) {
-    if (force_input_mode == DF && pid != pid_df)
-      change_mode_to = force_input_mode;
-    else if (force_input_mode == DFP && pid != pid_dfp)
-      change_mode_to = force_input_mode;
-    else if (force_input_mode == DFGT && pid != pid_dfgt)
-      change_mode_to = force_input_mode;
-    else if (force_input_mode == G25 && pid != pid_g25)
-      change_mode_to = force_input_mode;
-    else if (force_input_mode == G27 && pid != pid_g27)
-      change_mode_to = force_input_mode;
-    else if (force_input_mode == G29 && pid != pid_g29)
-      change_mode_to = force_input_mode;
-    else
-      change_mode_to = NATIVE;
+
+    // try to best match input/output mode
+    if (auto_mode && force_input_mode == AUTO) {
+      // use the previous detected native mode (change_mode_to)
+      auto detected_input = change_mode_to;
+      switch (detected_input) {
+        case DFP:
+        {
+          if (output_mode == WHEEL_T_DF)
+            change_mode_to = DF;
+          break;
+        }
+        case DFGT:
+        case G25:
+        {
+          if (output_mode == WHEEL_T_DF)
+            change_mode_to = DF;
+          else if (output_mode == WHEEL_T_DFP)
+            change_mode_to = DFP;
+          break;
+        }
+        case G27:
+        {
+          if (output_mode == WHEEL_T_DF)
+            change_mode_to = DF;
+          else if (output_mode == WHEEL_T_DFP)
+            change_mode_to = DFP;
+          else if (output_mode == WHEEL_T_G25)
+            change_mode_to = G25;
+          break;
+        }
+        case G29:
+        {
+          if (output_mode == WHEEL_T_DF)
+            change_mode_to = DF;
+          else if (output_mode == WHEEL_T_DFP)
+            change_mode_to = DFP;
+          else if (output_mode == WHEEL_T_DFGT)
+            change_mode_to = DFGT;
+          else if (output_mode == WHEEL_T_G25)
+            change_mode_to = G25;
+          else if (output_mode == WHEEL_T_G27)
+            change_mode_to = G27;
+          break;
+        }
+      }//end switch
+
+      // force it into DF mode when emulating FGP, FFGP and SFW
+      if (output_mode == WHEEL_T_FGP ||output_mode == WHEEL_T_FFGP ||output_mode == WHEEL_T_SFW)
+        change_mode_to = DF;
+
+      //check if it's already in the correct mode, then skip mode change (by setting NATIVE)
+      if (   (pid == pid_df   && (output_mode == WHEEL_T_DF || output_mode == WHEEL_T_FGP || output_mode == WHEEL_T_FFGP || output_mode == WHEEL_T_SFW))
+          || (pid == pid_dfp  && output_mode == WHEEL_T_DFP)
+          || (pid == pid_dfgt && output_mode == WHEEL_T_DFGT)
+          || (pid == pid_g25  && output_mode == WHEEL_T_G25)
+          || (pid == pid_g27  && output_mode == WHEEL_T_G27) ) {
+        change_mode_to = NATIVE;
+      }
+    } else {
+      if (force_input_mode == DF && pid != pid_df)
+        change_mode_to = force_input_mode;
+      else if (force_input_mode == DFP && pid != pid_dfp)
+        change_mode_to = force_input_mode;
+      else if (force_input_mode == DFGT && pid != pid_dfgt)
+        change_mode_to = force_input_mode;
+      else if (force_input_mode == G25 && pid != pid_g25)
+        change_mode_to = force_input_mode;
+      else if (force_input_mode == G27 && pid != pid_g27)
+        change_mode_to = force_input_mode;
+      else if (force_input_mode == G29 && pid != pid_g29)
+        change_mode_to = force_input_mode;
+      else
+        change_mode_to = NATIVE;
+    }
   }
 
   #ifdef BOARD_RGB_PIN
@@ -390,7 +451,7 @@ void tuh_hid_umount_cb(uint8_t dev_addr, uint8_t idx) {
     init_stage = DISCONNECTED;
     change_mode_to = NATIVE;
     
-    tud_disconnect(); // disconnect to host
+//    tud_disconnect(); // disconnect to host
     memset(&generic_report, 0, sizeof(generic_report));
     set_led(LOW);
     #ifdef BOARD_RGB_PIN
@@ -398,9 +459,9 @@ void tuh_hid_umount_cb(uint8_t dev_addr, uint8_t idx) {
       ledStrip.show();
     #endif
     
-    persisted_output_mode_valid = 0x0;
-    reboot();
-  
+//    persisted_output_mode_valid = 0x0;
+//    reboot();
+    
   }
 }
 
@@ -596,7 +657,20 @@ void loop() {
       if (!wheel_supports_cmd) // skip commands
         mode_step = 255;
       if (mode_step < cmd_mode->cmd_count) {
-        if (tuh_hid_send_report(wheel_addr, wheel_idx, 0, &cmd_mode->cmd[7*(mode_step)], 7)) {
+
+        // should skip command? skip if all bytes are zero
+        bool skip_command = true;
+        for (uint8_t i = 0; i < 7; ++i) {
+          if (cmd_mode->cmd[(7*(mode_step)) + i]) {
+            skip_command = false;
+            break;
+          }
+        }
+
+        if (skip_command) {
+          ++mode_step;
+        }
+        else if (tuh_hid_send_report(wheel_addr, wheel_idx, 0, &cmd_mode->cmd[7*(mode_step)], 7)) {
           ++mode_step;
         }
       }
@@ -648,9 +722,6 @@ void loop() {
           break;
         case WHEEL_T_G27:
           usb_hid.sendReport(0, &out_g27_report, sizeof(out_g27_report));
-          break;
-        case WHEEL_T_SFW:
-          usb_hid.sendReport(0, &out_sfw_report, sizeof(out_sfw_report));
           break;
       }
     }

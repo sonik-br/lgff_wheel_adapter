@@ -1,5 +1,7 @@
 #pragma once
 
+#include "config.h"
+
 struct init_mode_commands {
   const uint8_t cmd_count; /* Number of commands to send */
   const uint8_t cmd[];
@@ -8,7 +10,11 @@ struct init_mode_commands {
 const uint8_t mode_cmd_interval = 20; // ms
 const uint8_t mode_cmd_length = 7;
 
-#define CMD_DEACTIVATE_AUTO_CENTER 0xf5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+#ifdef DEACTIVATE_AUTO_CENTER
+  #define CMD_DEACTIVATE_AUTO_CENTER 0xf5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+#else
+  #define CMD_DEACTIVATE_AUTO_CENTER 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+#endif
 #define CMD_REVERT_MODE            0xf8, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00
 
 static const struct init_mode_commands cmd_mode_none = {

@@ -16,9 +16,9 @@ Let me know if you can help.
 | WingMan Formula GP (no FFB)         | Yes (untested)             | Yes               |
 | WingMan Formula Force GP (GT Force) | Yes (untested)             | Yes               |
 | Driving Force                       | Yes                        | Yes               |
-| Driving Force Pro (GT Force Pro)    | Yes                        | Yes               |
+| Driving Force Pro (GT Force Pro)    | Yes (untested)             | Yes               |
 | Driving Force GT                    | Yes                        | Yes               |
-| G25 Racing Wheel                    | Yes                        | Yes               |
+| G25 Racing Wheel                    | Yes (untested)             | Yes               |
 | G27 Racing Wheel                    | Yes                        | Yes               |
 | G29 Racing Wheel                    | Yes                        | No                |
 | Speed Force Wireless                | Yes                        | Yes               |

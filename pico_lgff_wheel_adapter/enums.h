@@ -23,7 +23,7 @@ enum init_stage_status {
 
 enum lg_wheel_type {
   NATIVE,
-//  OTHER,
+  AUTO,
   DF,
   DFP,
   DFGT,

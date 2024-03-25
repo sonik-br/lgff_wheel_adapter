@@ -7,6 +7,11 @@
 // USB D+ pin
 #define PIN_USB_HOST_DP 0
 
+// disable initial wheel auto-center
+// most (all) logitech wheels starts with auto-centering enabled
+// this will send a command to disable it during device start up process
+// #define DEACTIVATE_AUTO_CENTER
+
 // enable automatic mode switch.
 // device will start in Driving Force compatibility mode (as most logitech wheels does)
 // only works with output_mode: WHEEL_T_DFP, WHEEL_T_DFGT, WHEEL_T_G25, WHEEL_T_G27
@@ -17,10 +22,11 @@ const bool auto_mode = true;
 lg_wheel_output_type output_mode = WHEEL_T_G27;
 
 // force input wheel into specific compatibility mode
-// possible modes: NATIVE, DF, DFP, DFGT, G25, G27, G29.
+// possible modes: NATIVE, AUTO, DF, DFP, DFGT, G25, G27, G29.
 // NATIVE will force the wheel into it's native mode.
 // don't force a mode not supported by your wheel!
-const lg_wheel_type force_input_mode = NATIVE;
+// AUTO will try to best match with the output_mode, with fall back to NATIVE
+const lg_wheel_type force_input_mode = AUTO;
 
 /*******************************************************************************
  * Optional config.
