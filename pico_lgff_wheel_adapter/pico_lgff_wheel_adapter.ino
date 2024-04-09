@@ -723,6 +723,9 @@ void loop() {
         case WHEEL_T_G27:
           usb_hid.sendReport(0, &out_g27_report, sizeof(out_g27_report));
           break;
+        case WHEEL_T_SFW:
+          usb_hid.sendReport(0, &out_sfw_report, sizeof(out_sfw_report));
+          break;
       }
     }
 //    if (memcmp(&last_report, &out_report, sizeof(out_report))) {
@@ -1105,6 +1108,7 @@ void map_output() {
       break;
     case WHEEL_T_FFGP:
     case WHEEL_T_DF:
+    case WHEEL_T_SFW:
       wheel_output_precision = wheel_10bits;
       break;
     case WHEEL_T_DFP:
@@ -1208,6 +1212,9 @@ void map_output() {
       break;
     case WHEEL_T_G27:
       map_g27_out(wheel, gas, brake, clutch);
+      break;
+    case WHEEL_T_SFW:
+      map_sfw_out(wheel, gas, brake, clutch);
       break;
   }
 }
@@ -1387,4 +1394,55 @@ void map_g27_out(uint16_t wheel, uint16_t gas, uint16_t brake, uint16_t clutch) 
   out_g27_report.shifter_6 = generic_report.shifter_6;
   out_g27_report.shifter_r = generic_report.shifter_r;
   out_g27_report.shifter_stick_down = generic_report.shifter_stick_down;
+}
+
+void map_sfw_out(uint16_t wheel, uint16_t gas, uint16_t brake, uint16_t clutch) {
+  out_sfw_report.wheel = wheel;
+  out_sfw_report.gasPedal = gas;
+  out_sfw_report.brakePedal = brake;
+  out_sfw_report.b = generic_report.cross;
+  out_sfw_report.one = generic_report.square;
+  out_sfw_report.a = generic_report.circle;
+  out_sfw_report.two = generic_report.triangle;
+
+  out_sfw_report.hat_u = 0;
+  out_sfw_report.hat_d = 0;
+  out_sfw_report.hat_l = 0;
+  out_sfw_report.hat_r = 0;
+  switch (generic_report.hat) {
+    case 0x0:
+      out_sfw_report.hat_u = 1;
+      break;
+    case 0x1:
+      out_sfw_report.hat_u = 1;
+      out_sfw_report.hat_r = 1;
+      break;
+    case 0x2:
+      out_sfw_report.hat_r = 1;
+      break;
+    case 0x3:
+      out_sfw_report.hat_d = 1;
+      out_sfw_report.hat_r = 1;
+      break;
+    case 0x4:
+      out_sfw_report.hat_d = 1;
+      break;
+    case 0x5:
+      out_sfw_report.hat_d = 1;
+      out_sfw_report.hat_l = 1;
+      break;
+    case 0x6:
+      out_sfw_report.hat_l = 1;
+      break;
+    case 0x7:
+      out_sfw_report.hat_u = 1;
+      out_sfw_report.hat_l = 1;
+      break;
+    default:
+      break;
+  }
+
+  out_sfw_report.minus = generic_report.select;
+  out_sfw_report.plus = generic_report.start;
+  out_sfw_report.home = generic_report.PS;
 }
