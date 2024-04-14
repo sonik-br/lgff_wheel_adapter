@@ -316,7 +316,7 @@ const uint16_t usb_g25_bcd_version = 0x0200; // todo confirm
 const char usb_g25_string_product[] = "G25 Racing Wheel";
 //const uint16_t usb_g25_bcd_device_version = 0x0000; // todo confirm with a report from a real G25. when using 0x0000 the lg windows driver bugs out
 //const uint16_t usb_g25_bcd_device_version = 0x1239; // taken from a drivehub in g25 mode. looks like it emulates a G27 in G25 mode
-const uint16_t usb_g25_bcd_device_version = 0x1200; // testing for auto_mode
+const uint16_t usb_g25_bcd_device_version = 0x1222; // testing for auto_mode
 
 const uint8_t desc_g25_hid_report[] = {
   0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)

@@ -224,7 +224,7 @@ typedef struct TU_ATTR_PACKED {
   uint8_t shifter_5 : 1;
   uint8_t shifter_6 : 1;
   uint8_t shifter_r : 1;
-  uint8_t : 1; //always 0
+  uint8_t : 1; // shifter mode? 0 = H, 1 = Sequential
   
   uint8_t pedal_disconnected : 1;
   uint8_t power_connected : 1; //(power or calibrated? , not sure)
@@ -265,14 +265,14 @@ typedef struct TU_ATTR_PACKED {
   uint8_t R3 : 1;
   uint8_t L3 : 1;
 
-  uint8_t R4 : 1;
-  uint8_t R5 : 1;
   uint8_t shifter_1 : 1;
   uint8_t shifter_2 : 1;
   uint8_t shifter_3 : 1;
   uint8_t shifter_4 : 1;
   uint8_t shifter_5 : 1;
   uint8_t shifter_6 : 1;
+  uint8_t R4 : 1;
+  uint8_t R5 : 1;
   
   uint8_t L4 : 1;
   uint8_t L5 : 1;

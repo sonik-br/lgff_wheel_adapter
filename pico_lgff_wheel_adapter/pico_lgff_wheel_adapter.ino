@@ -189,6 +189,23 @@ void set_led(bool value) {
   #endif
 }
 
+void reset_generic_report() {
+  memset(&generic_report, 0, sizeof(generic_report));
+  generic_report.hat = 0x08;
+  generic_report.wheel_8 = 0x7F;
+  generic_report.wheel_10 = 0x7F;
+  generic_report.wheel_14 = 0x7F;
+  generic_report.wheel_16 = 0x7F;
+  generic_report.gasPedal_8 = 0xFF;
+  generic_report.brakePedal_8 = 0xFF;
+  generic_report.clutchPedal_8 = 0xFF;
+  generic_report.gasPedal_16 = 0xFFFF;
+  generic_report.brakePedal_16 = 0xFFFF;
+  generic_report.clutchPedal_16 = 0xFFFF;
+  generic_report.shifter_x = 0x80;
+  generic_report.shifter_y = 0x80;
+}
+
 void receive_device_descriptor(tuh_xfer_t *xfer) {
   if (XFER_RESULT_SUCCESS != xfer->result) {
     // failed to get device descriptor. query it again
@@ -259,9 +276,9 @@ void receive_device_descriptor(tuh_xfer_t *xfer) {
         }
         case G29:
         {
-          if (output_mode == WHEEL_T_DF)
-            change_mode_to = DF;
-          else if (output_mode == WHEEL_T_DFP)
+//          if (output_mode == WHEEL_T_DF)
+//            change_mode_to = DF;
+          if (output_mode == WHEEL_T_DFP)
             change_mode_to = DFP;
           else if (output_mode == WHEEL_T_DFGT)
             change_mode_to = DFGT;
@@ -345,6 +362,7 @@ void hid_set_report_callback(uint8_t report_id, hid_report_type_t report_type, u
     0x01 Change Mode to Driving Force Pro
     0x02 Change Wheel Range to 200 Degrees
     0x03 Change Wheel Range to 900 Degrees
+    0x06 Unknown. Some PS2 game sends it
     0x09 Change Device Mode
     0x0a Revert Identity
     0x10 Switch to G25 Identity with USB Detach
@@ -361,7 +379,7 @@ void hid_set_report_callback(uint8_t report_id, hid_report_type_t report_type, u
     } else if (ext_cmd == 0x02 || ext_cmd == 0x03 || ext_cmd == 0x81) { // Wheel Range Change
       // skip for now. need to test
 //      return;
-    } else { //mode change commands
+    } else if (ext_cmd == 0x01 || ext_cmd == 0x10 || ext_cmd == 0x11 || ext_cmd == 0x09 || ext_cmd == 0x06) { //mode change commands
       // skip as we curently can't change our output mode at runtime
       
       if (!auto_mode)
@@ -372,6 +390,9 @@ void hid_set_report_callback(uint8_t report_id, hid_report_type_t report_type, u
       lg_wheel_output_type new_mode = output_mode;
 
       if (ext_cmd == 0x01) { // Change Mode to Driving Force Pro
+        new_mode = WHEEL_T_DFP;
+        detach = true;
+      } else if (ext_cmd == 0x06) { // Unknow command. Changing to DFP seems to work
         new_mode = WHEEL_T_DFP;
         detach = true;
       } else if (ext_cmd == 0x10) { // Switch to G25 Identity with USB Detach
@@ -395,10 +416,13 @@ void hid_set_report_callback(uint8_t report_id, hid_report_type_t report_type, u
         }
       }
 
+      // forcing detach
+      detach = true;
+
       if (new_mode != output_mode) {
         if (detach)
           tud_disconnect();
-        delay(500); // testing. probably not needed.
+        delay(2000); // testing. probably not needed.
         output_mode = new_mode;
         if (detach) {
           reset_usb();
@@ -452,7 +476,7 @@ void tuh_hid_umount_cb(uint8_t dev_addr, uint8_t idx) {
     change_mode_to = NATIVE;
     
 //    tud_disconnect(); // disconnect to host
-    memset(&generic_report, 0, sizeof(generic_report));
+    reset_generic_report();
     set_led(LOW);
     #ifdef BOARD_RGB_PIN
       ledStrip.fill( WS2812::RGB(0, 0, 0) );
@@ -469,6 +493,9 @@ void tuh_hid_report_received_cb(uint8_t dev_addr, uint8_t idx, uint8_t const* re
 
   // safe check
   if (len > 0 && dev_addr == wheel_addr && idx == wheel_idx) {
+
+    reset_generic_report();
+    
     // map the received report to generic_output
     map_input(report);
 
@@ -1381,6 +1408,8 @@ void map_g27_out(uint16_t wheel, uint16_t gas, uint16_t brake, uint16_t clutch) 
   out_g27_report.L3 = generic_report.L3;
 
   out_g27_report.R4 = generic_report.R4;
+  out_g27_report.L4 = generic_report.L4;
+  out_g27_report.R5 = generic_report.R5;
   out_g27_report.L5 = generic_report.L5;
   
   out_g27_report.clutchPedal = clutch;
