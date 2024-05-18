@@ -392,9 +392,9 @@ void hid_set_report_callback(uint8_t report_id, hid_report_type_t report_type, u
       if (ext_cmd == 0x01) { // Change Mode to Driving Force Pro
         new_mode = WHEEL_T_DFP;
         detach = true;
-      } else if (ext_cmd == 0x06) { // Unknow command. Changing to DFP seems to work
+      } else if (ext_cmd == 0x06) { // Unknow command. Looks to be "Change Mode to Driving Force Pro without USB Detach"
         new_mode = WHEEL_T_DFP;
-        detach = true;
+        detach = false;
       } else if (ext_cmd == 0x10) { // Switch to G25 Identity with USB Detach
         new_mode = WHEEL_T_G25;
         detach = true;
@@ -477,6 +477,10 @@ void tuh_hid_umount_cb(uint8_t dev_addr, uint8_t idx) {
     
 //    tud_disconnect(); // disconnect to host
     reset_generic_report();
+
+    // tell the other core that the report was updated
+    rp2040.fifo.push_nb(1);
+    
     set_led(LOW);
     #ifdef BOARD_RGB_PIN
       ledStrip.fill( WS2812::RGB(0, 0, 0) );
@@ -501,6 +505,9 @@ void tuh_hid_report_received_cb(uint8_t dev_addr, uint8_t idx, uint8_t const* re
 
     // now map the generic_output to the output_mode
     map_output();
+
+    // tell the other core that the report was updated
+    rp2040.fifo.push_nb(1);
   }
 
   // receive next report
@@ -724,41 +731,42 @@ void loop() {
     }
   }
 
+  // input report was updated?
+  bool report_was_updated = false;
+  if (rp2040.fifo.available()) {
+    report_was_updated = memcmp(&last_report, &generic_report, sizeof(generic_report));
+    memcpy(&last_report, &generic_report, sizeof(generic_report));
+    rp2040.fifo.clear();
+  }
+
   // send hid report to host
-  if (usb_hid.ready()) {
-    if (memcmp(&last_report, &generic_report, sizeof(generic_report))) {
-      memcpy(&last_report, &generic_report, sizeof(generic_report));
-      switch (output_mode) {
-        case WHEEL_T_FGP:
-          usb_hid.sendReport(0, &out_fgp_report, sizeof(out_fgp_report));
-          break;
-        case WHEEL_T_FFGP:
-          usb_hid.sendReport(0, &out_ffgp_report, sizeof(out_ffgp_report));
-          break;
-        case WHEEL_T_DF:
-          usb_hid.sendReport(0, &out_df_report, sizeof(out_df_report));
-          break;
-        case WHEEL_T_DFP:
-          usb_hid.sendReport(0, &out_dfp_report, sizeof(out_dfp_report));
-          break;
-        case WHEEL_T_DFGT:
-          usb_hid.sendReport(0, &out_dfgt_report, sizeof(out_dfgt_report));
-          break;
-        case WHEEL_T_G25:
-          usb_hid.sendReport(0, &out_g25_report, sizeof(out_g25_report));
-          break;
-        case WHEEL_T_G27:
-          usb_hid.sendReport(0, &out_g27_report, sizeof(out_g27_report));
-          break;
-        case WHEEL_T_SFW:
-          usb_hid.sendReport(0, &out_sfw_report, sizeof(out_sfw_report));
-          break;
-      }
+  if (report_was_updated && usb_hid.ready()) {
+    switch (output_mode) {
+      case WHEEL_T_FGP:
+        usb_hid.sendReport(0, &out_fgp_report, sizeof(out_fgp_report));
+        break;
+      case WHEEL_T_FFGP:
+        usb_hid.sendReport(0, &out_ffgp_report, sizeof(out_ffgp_report));
+        break;
+      case WHEEL_T_DF:
+        usb_hid.sendReport(0, &out_df_report, sizeof(out_df_report));
+        break;
+      case WHEEL_T_DFP:
+        usb_hid.sendReport(0, &out_dfp_report, sizeof(out_dfp_report));
+        break;
+      case WHEEL_T_DFGT:
+        usb_hid.sendReport(0, &out_dfgt_report, sizeof(out_dfgt_report));
+        break;
+      case WHEEL_T_G25:
+        usb_hid.sendReport(0, &out_g25_report, sizeof(out_g25_report));
+        break;
+      case WHEEL_T_G27:
+        usb_hid.sendReport(0, &out_g27_report, sizeof(out_g27_report));
+        break;
+      case WHEEL_T_SFW:
+        usb_hid.sendReport(0, &out_sfw_report, sizeof(out_sfw_report));
+        break;
     }
-//    if (memcmp(&last_report, &out_report, sizeof(out_report))) {
-//      usb_hid.sendReport(0, &out_report, sizeof(out_report));
-//      memcpy(&last_report, &out_report, sizeof(out_report));
-//    }
   }
   
   // send command to device
