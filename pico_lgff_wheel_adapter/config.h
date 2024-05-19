@@ -32,5 +32,12 @@ const lg_wheel_type force_input_mode = AUTO;
  * Optional config.
 /*******************************************************************************/
 
+// external pedal type
+// possible types: PEDAL_G25
+// if enabled, also need to set the pins for GAS and BRAKE. Must use analog pin
+//#define EXTERNAL_PEDAL_TYPE PEDAL_G25
+//#define PEDAL_GAS 26
+//#define PEDAL_BRAKE 27
+
 // WS2812 rgb led pin (comment out if not using)
 //#define BOARD_RGB_PIN 23

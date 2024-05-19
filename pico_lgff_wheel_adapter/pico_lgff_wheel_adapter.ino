@@ -30,6 +30,10 @@
 #include "reports.h"
 #include "usb_descriptors.h"
 
+// validation
+#if defined(EXTERNAL_PEDAL_TYPE) && (!defined(PEDAL_GAS) || !defined(PEDAL_BRAKE))
+  #error Need to set PEDAL_GAS and PEDAL_BRAKE analog pins
+#endif
 
 // USB Host object
 Adafruit_USBH_Host USBHost;
@@ -188,6 +192,11 @@ void set_led(bool value) {
     gpio_put(LED_BUILTIN, value);
   #endif
 }
+
+#ifdef EXTERNAL_PEDAL_TYPE
+  uint8_t external_gas_value = 255;
+  uint8_t external_brake_value = 255;
+#endif
 
 void reset_generic_report() {
   memset(&generic_report, 0, sizeof(generic_report));
@@ -503,6 +512,13 @@ void tuh_hid_report_received_cb(uint8_t dev_addr, uint8_t idx, uint8_t const* re
     // map the received report to generic_output
     map_input(report);
 
+    //if using external pedals, override
+    #ifdef EXTERNAL_PEDAL_TYPE
+      generic_report.pedals_precision_16bits = false;
+      generic_report.gasPedal_8 = external_gas_value;
+      generic_report.brakePedal_8 = external_brake_value;
+    #endif
+
     // now map the generic_output to the output_mode
     map_output();
 
@@ -526,6 +542,12 @@ void setup() {
     gpio_init(LED_BUILTIN);
     gpio_set_dir(LED_BUILTIN, 1);
     gpio_put(LED_BUILTIN, LOW);
+  #endif
+
+  //using arduino code to keep it simple
+  #ifdef EXTERNAL_PEDAL_TYPE
+    pinMode(PEDAL_GAS, INPUT);
+    pinMode(PEDAL_BRAKE, INPUT);
   #endif
 
   #if defined(ARDUINO_ARCH_MBED) && defined(ARDUINO_ARCH_RP2040)
@@ -730,6 +752,75 @@ void loop() {
       last_millis = millis();
     }
   }
+  
+  //if using external pedals, override values
+  bool external_pedals_updated = false;
+  #ifdef EXTERNAL_PEDAL_TYPE
+    // GAS
+    static uint8_t last_external_gas = 255;
+    static uint16_t gas_min = 4096;
+    static uint16_t gas_max = 0;
+    uint16_t gas_now = analogRead(PEDAL_GAS);
+    gas_min = min(gas_min, gas_now);
+    gas_max = max(gas_max, gas_now);
+    external_gas_value = map(gas_now, gas_min, gas_max, 0, 255);
+    if (last_external_gas != external_gas_value)
+      external_pedals_updated = true;
+    last_external_gas = external_gas_value;
+
+    // BRAKE
+    static uint8_t last_external_brake = 255;
+    static uint16_t brake_min = 4096;
+    static uint16_t brake_max = 0;
+    uint16_t brake_now = analogRead(PEDAL_BRAKE);
+    brake_min = min(brake_min, brake_now);
+    brake_max = max(brake_max, brake_now);
+    external_brake_value = map(brake_now, brake_min, brake_max, 0, 255);
+    if (last_external_brake != external_brake_value)
+      external_pedals_updated = true;
+    last_external_brake = external_brake_value;
+
+    switch (output_mode) {
+      case WHEEL_T_FGP:
+        out_fgp_report.gasPedal = external_gas_value;
+        out_fgp_report.brakePedal = external_brake_value;
+        out_fgp_report.pedals = (~(out_fgp_report.brakePedal>>1) - ~(out_fgp_report.gasPedal>>1)) + 0x7f;
+        break;
+      case WHEEL_T_FFGP:
+        out_ffgp_report.gasPedal = external_gas_value;
+        out_ffgp_report.brakePedal = external_brake_value;
+        out_ffgp_report.pedals = (~(out_ffgp_report.brakePedal>>1) - ~(out_ffgp_report.gasPedal>>1)) + 0x7f;
+        break;
+      case WHEEL_T_DF:
+        out_df_report.gasPedal = external_gas_value;
+        out_df_report.brakePedal = external_brake_value;
+        out_df_report.pedals = (~(out_df_report.brakePedal>>1) - ~(out_df_report.gasPedal>>1)) + 0x7f;
+        break;
+      case WHEEL_T_DFP:
+        out_dfp_report.gasPedal = external_gas_value;
+        out_dfp_report.brakePedal = external_brake_value;
+        out_dfp_report.pedals = (~(out_dfp_report.brakePedal>>1) - ~(out_dfp_report.gasPedal>>1)) + 0x7f;
+        break;
+      case WHEEL_T_DFGT:
+        out_dfgt_report.gasPedal = external_gas_value;
+        out_dfgt_report.brakePedal = external_brake_value;
+        break;
+      case WHEEL_T_G25:
+        out_g25_report.gasPedal = external_gas_value;
+        out_g25_report.brakePedal = external_brake_value;
+        break;
+      case WHEEL_T_G27:
+        out_g27_report.gasPedal = external_gas_value;
+        out_g27_report.brakePedal = external_brake_value;
+        break;
+      case WHEEL_T_SFW:
+        out_sfw_report.gasPedal = external_gas_value;
+        out_sfw_report.brakePedal = external_brake_value;
+        break;
+    }
+    
+  #endif
+
 
   // input report was updated?
   bool report_was_updated = false;
@@ -737,6 +828,8 @@ void loop() {
     report_was_updated = memcmp(&last_report, &generic_report, sizeof(generic_report));
     memcpy(&last_report, &generic_report, sizeof(generic_report));
     rp2040.fifo.clear();
+  } else if (external_pedals_updated) {
+    report_was_updated = true;
   }
 
   // send hid report to host

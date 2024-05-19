@@ -32,6 +32,12 @@ enum lg_wheel_type {
   G29
 };
 
+// external pedal type
+enum external_pedal_type {
+  PEDAL_G25 // Also G27, G29...
+  //PEDAL_DFGT
+};
+
 //enum wheel_precision {
 //  wheel_10bits = 0,
 //  wheel_14bits,
