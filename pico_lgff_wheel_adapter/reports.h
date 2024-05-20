@@ -108,15 +108,15 @@ typedef struct TU_ATTR_PACKED {
     uint8_t square : 1;
     uint8_t circle : 1;
     uint8_t triangle : 1;
-    uint8_t R1 : 1;
-    uint8_t L1 : 1;
-
     uint8_t R2 : 1;
     uint8_t L2 : 1;
-    uint8_t select : 1;
-    uint8_t start : 1;
+
     uint8_t R3 : 1;
     uint8_t L3 : 1;
+    uint8_t select : 1;
+    uint8_t start : 1;
+    uint8_t R1 : 1; // right paddle
+    uint8_t L1 : 1; // left paddle
     uint8_t pedal_connected : 1; // not sure. DFWireless reports as zero
     uint8_t power_connected : 1; //not sure. DFWireless reports as zero
 

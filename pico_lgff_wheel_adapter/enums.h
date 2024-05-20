@@ -34,7 +34,7 @@ enum lg_wheel_type {
 
 // external pedal type
 enum external_pedal_type {
-  PEDAL_G25 // Also G27, G29...
+  PEDAL_G25 // Also G27, G29... Both pedals are high when in rest position
   //PEDAL_DFGT
 };
 

@@ -193,11 +193,6 @@ void set_led(bool value) {
   #endif
 }
 
-#ifdef EXTERNAL_PEDAL_TYPE
-  uint8_t external_gas_value = 255;
-  uint8_t external_brake_value = 255;
-#endif
-
 void reset_generic_report() {
   memset(&generic_report, 0, sizeof(generic_report));
   generic_report.hat = 0x08;
@@ -512,13 +507,6 @@ void tuh_hid_report_received_cb(uint8_t dev_addr, uint8_t idx, uint8_t const* re
     // map the received report to generic_output
     map_input(report);
 
-    //if using external pedals, override
-    #ifdef EXTERNAL_PEDAL_TYPE
-      generic_report.pedals_precision_16bits = false;
-      generic_report.gasPedal_8 = external_gas_value;
-      generic_report.brakePedal_8 = external_brake_value;
-    #endif
-
     // now map the generic_output to the output_mode
     map_output();
 
@@ -732,7 +720,7 @@ void loop() {
       }
       // after all initialization commands are sent, disconnect/reconnect the device to force host re-enumeration
       if(mode_step >= cmd_mode->cmd_count) {
-        last_millis == 0;
+        last_millis = 0;
         init_stage = RESTARTING; // set next stage
         
         // no mode change was sent. wheel must be in native mode now. starts receiving inputs!
@@ -763,7 +751,7 @@ void loop() {
     uint16_t gas_now = analogRead(PEDAL_GAS);
     gas_min = min(gas_min, gas_now);
     gas_max = max(gas_max, gas_now);
-    external_gas_value = map(gas_now, gas_min, gas_max, 0, 255);
+    uint8_t external_gas_value = map(gas_now, gas_min, gas_max, 0, 255);
     if (last_external_gas != external_gas_value)
       external_pedals_updated = true;
     last_external_gas = external_gas_value;
@@ -775,50 +763,55 @@ void loop() {
     uint16_t brake_now = analogRead(PEDAL_BRAKE);
     brake_min = min(brake_min, brake_now);
     brake_max = max(brake_max, brake_now);
-    external_brake_value = map(brake_now, brake_min, brake_max, 0, 255);
+    uint8_t external_brake_value = map(brake_now, brake_min, brake_max, 0, 255);
     if (last_external_brake != external_brake_value)
       external_pedals_updated = true;
     last_external_brake = external_brake_value;
 
-    switch (output_mode) {
-      case WHEEL_T_FGP:
-        out_fgp_report.gasPedal = external_gas_value;
-        out_fgp_report.brakePedal = external_brake_value;
-        out_fgp_report.pedals = (~(out_fgp_report.brakePedal>>1) - ~(out_fgp_report.gasPedal>>1)) + 0x7f;
-        break;
-      case WHEEL_T_FFGP:
-        out_ffgp_report.gasPedal = external_gas_value;
-        out_ffgp_report.brakePedal = external_brake_value;
-        out_ffgp_report.pedals = (~(out_ffgp_report.brakePedal>>1) - ~(out_ffgp_report.gasPedal>>1)) + 0x7f;
-        break;
-      case WHEEL_T_DF:
-        out_df_report.gasPedal = external_gas_value;
-        out_df_report.brakePedal = external_brake_value;
-        out_df_report.pedals = (~(out_df_report.brakePedal>>1) - ~(out_df_report.gasPedal>>1)) + 0x7f;
-        break;
-      case WHEEL_T_DFP:
-        out_dfp_report.gasPedal = external_gas_value;
-        out_dfp_report.brakePedal = external_brake_value;
-        out_dfp_report.pedals = (~(out_dfp_report.brakePedal>>1) - ~(out_dfp_report.gasPedal>>1)) + 0x7f;
-        break;
-      case WHEEL_T_DFGT:
-        out_dfgt_report.gasPedal = external_gas_value;
-        out_dfgt_report.brakePedal = external_brake_value;
-        break;
-      case WHEEL_T_G25:
-        out_g25_report.gasPedal = external_gas_value;
-        out_g25_report.brakePedal = external_brake_value;
-        break;
-      case WHEEL_T_G27:
-        out_g27_report.gasPedal = external_gas_value;
-        out_g27_report.brakePedal = external_brake_value;
-        break;
-      case WHEEL_T_SFW:
-        out_sfw_report.gasPedal = external_gas_value;
-        out_sfw_report.brakePedal = external_brake_value;
-        break;
+    if (external_pedals_updated) {
+      switch (output_mode) {
+        case WHEEL_T_FGP:
+          out_fgp_report.gasPedal = external_gas_value;
+          out_fgp_report.brakePedal = external_brake_value;
+          out_fgp_report.pedals = (~(out_fgp_report.brakePedal>>1) - ~(out_fgp_report.gasPedal>>1)) + 0x7f;
+          break;
+        case WHEEL_T_FFGP:
+          out_ffgp_report.gasPedal = external_gas_value;
+          out_ffgp_report.brakePedal = external_brake_value;
+          out_ffgp_report.pedals = (~(out_ffgp_report.brakePedal>>1) - ~(out_ffgp_report.gasPedal>>1)) + 0x7f;
+          break;
+        case WHEEL_T_DF:
+          out_df_report.gasPedal = external_gas_value;
+          out_df_report.brakePedal = external_brake_value;
+          out_df_report.pedals = (~(out_df_report.brakePedal>>1) - ~(out_df_report.gasPedal>>1)) + 0x7f;
+          break;
+        case WHEEL_T_DFP:
+          out_dfp_report.gasPedal = external_gas_value;
+          out_dfp_report.brakePedal = external_brake_value;
+          out_dfp_report.pedals = (~(out_dfp_report.brakePedal>>1) - ~(out_dfp_report.gasPedal>>1)) + 0x7f;
+          break;
+        case WHEEL_T_DFGT:
+          out_dfgt_report.gasPedal = external_gas_value;
+          out_dfgt_report.brakePedal = external_brake_value;
+          break;
+        case WHEEL_T_G25:
+          out_g25_report.gasPedal = external_gas_value;
+          out_g25_report.brakePedal = external_brake_value;
+          break;
+        case WHEEL_T_G27:
+          out_g27_report.gasPedal = external_gas_value;
+          out_g27_report.brakePedal = external_brake_value;
+          break;
+        case WHEEL_T_SFW:
+          out_sfw_report.gasPedal = external_gas_value;
+          out_sfw_report.brakePedal = external_brake_value;
+          break;
+      }
+      
+      //copy pedal data to other core
+      uint32_t external_pedals_values = (external_brake_value << 8) | external_gas_value;
+      rp2040.fifo.push_nb(external_pedals_values);
     }
-    
   #endif
 
 
@@ -897,8 +890,8 @@ void setup1() {
   uint32_t cpu_hz = clock_get_hz(clk_sys);
   if ( cpu_hz != 120000000UL && cpu_hz != 240000000UL ) {
     while ( !Serial ) delay(10);   // wait for native usb
-    Serial.printf("Error: CPU Clock = %u, PIO USB require CPU clock must be multiple of 120 Mhz\r\n", cpu_hz);
-    Serial.printf("Change your CPU Clock to either 120 or 240 Mhz in Menu->CPU Speed \r\n", cpu_hz);
+    Serial.printf("Error: CPU Clock = %lu, PIO USB require CPU clock must be multiple of 120 Mhz\r\n", cpu_hz);
+    Serial.printf("Change your CPU Clock to either 120 or 240 Mhz in Menu->CPU Speed \r\n");
     while (1) delay(1);
   }
 
@@ -1221,6 +1214,13 @@ void map_input(uint8_t const* report) {
     generic_report.select = input_report->minus;
     generic_report.start = input_report->plus;
     generic_report.PS = input_report->home;
+
+    // if using external pedals, reuse the analog paddles as L1/R1
+    #ifdef EXTERNAL_PEDAL_TYPE
+      generic_report.R1 = input_report->gasPedal < 127;
+      generic_report.L1 = input_report->brakePedal < 127;
+    #endif
+    
   }
   // todo add input support for the momo
 }
@@ -1298,6 +1298,16 @@ void map_output() {
       wheel = generic_report.wheel_16 >> 2;
     }
   }
+
+  //if using external pedals, override input. grab data from other core
+  #ifdef EXTERNAL_PEDAL_TYPE
+    static uint32_t external_pedals_values = ~0x0;
+    while (rp2040.fifo.available())
+      external_pedals_values = rp2040.fifo.pop();
+    generic_report.pedals_precision_16bits = false;
+    generic_report.gasPedal_8 = external_pedals_values & 0xFF;
+    generic_report.brakePedal_8 = (external_pedals_values >> 8) & 0xFF;
+  #endif
 
   if (pedals_output_precision_16bits == generic_report.pedals_precision_16bits) { // no conversion
     if (generic_report.pedals_precision_16bits) {
