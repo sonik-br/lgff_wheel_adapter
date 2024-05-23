@@ -16,7 +16,7 @@
  * https://github.com/berarma/new-lg4ff
  * https://www.lfs.net/forum/thread/74115-LTWheelConf----Setup-Logitech-DFP-G25-G27-on-linux
  * 
-/*******************************************************************************/
+ *******************************************************************************/
 
 // pio-usb is required for rp2040 host
 #include "pio_usb.h"
@@ -232,7 +232,9 @@ void receive_device_descriptor(tuh_xfer_t *xfer) {
   tuh_vid_pid_get(wheel_addr, &vid, &pid);
 
   // check if wheel is in compatibility or native mode
-  if ( ((pid_df == pid) || (pid_dfp == pid) || (pid_g25 == pid)) && (0x1350 == (desc.bcdDevice & 0xfff0)) ) // G29 in compatibility mode
+  if (pid_g923ps == pid) // G923 in PS mode
+    change_mode_to = G923;
+  else if ( ((pid_df == pid) || (pid_dfp == pid) || (pid_g25 == pid)) && (0x1350 == (desc.bcdDevice & 0xfff0)) ) // G29 in compatibility mode
     change_mode_to = G29;
   else if ( ((pid_df == pid) || (pid_dfp == pid)) && (0x1300 == (desc.bcdDevice & 0xff00)) ) // DFGT in compatibility mode
     change_mode_to = DFGT;
@@ -295,8 +297,10 @@ void receive_device_descriptor(tuh_xfer_t *xfer) {
       }//end switch
 
       // force it into DF mode when emulating FGP, FFGP and SFW
-      if (output_mode == WHEEL_T_FGP ||output_mode == WHEEL_T_FFGP ||output_mode == WHEEL_T_SFW)
+      if (output_mode == WHEEL_T_FGP ||output_mode == WHEEL_T_FFGP ||output_mode == WHEEL_T_SFW) {
+        // todo implement: only if it supports emulating another mode? 
         change_mode_to = DF;
+      }
 
       //check if it's already in the correct mode, then skip mode change (by setting NATIVE)
       if (   (pid == pid_df   && (output_mode == WHEEL_T_DF || output_mode == WHEEL_T_FGP || output_mode == WHEEL_T_FFGP || output_mode == WHEEL_T_SFW))
@@ -319,6 +323,10 @@ void receive_device_descriptor(tuh_xfer_t *xfer) {
         change_mode_to = force_input_mode;
       else if (force_input_mode == G29 && pid != pid_g29)
         change_mode_to = force_input_mode;
+      else if (force_input_mode == G923 && pid != pid_g923)
+        change_mode_to = force_input_mode;
+      else if (pid == pid_g923ps) // G923PS can only be changed to G923Classic
+        change_mode_to = G923;
       else
         change_mode_to = NATIVE;
     }
@@ -498,7 +506,6 @@ void tuh_hid_umount_cb(uint8_t dev_addr, uint8_t idx) {
 }
 
 void tuh_hid_report_received_cb(uint8_t dev_addr, uint8_t idx, uint8_t const* report, uint16_t len) {
-
   // safe check
   if (len > 0 && dev_addr == wheel_addr && idx == wheel_idx) {
 
@@ -692,6 +699,8 @@ void loop() {
       cmd_mode = &cmd_mode_g27;
     else if (change_mode_to == G29)
       cmd_mode = &cmd_mode_g29;
+    else if (change_mode_to == G923)
+      cmd_mode = &cmd_mode_g923;
     else
       cmd_mode = &cmd_mode_none;
 
@@ -711,10 +720,12 @@ void loop() {
           }
         }
 
+        uint8_t report_id = (change_mode_to == G923) ? 0x30 : 0x0;
+
         if (skip_command) {
           ++mode_step;
         }
-        else if (tuh_hid_send_report(wheel_addr, wheel_idx, 0, &cmd_mode->cmd[7*(mode_step)], 7)) {
+        else if (tuh_hid_send_report(wheel_addr, wheel_idx, report_id, &cmd_mode->cmd[7*(mode_step)], 7)) {
           ++mode_step;
         }
       }
@@ -1090,7 +1101,7 @@ void map_input(uint8_t const* report) {
     generic_report.shifter_r = input_report->shifter_r;
     generic_report.shifter_stick_down = input_report->shifter_stick_down;
 
-  } else if (pid == pid_g29) { // G29
+  } else if (pid == pid_g29 || pid == pid_g923) { // G29 or G923
 
     // map the received report to output report
     g29_report_t* input_report = (g29_report_t*)report;

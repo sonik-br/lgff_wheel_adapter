@@ -297,6 +297,7 @@ typedef struct TU_ATTR_PACKED {
 } g27_report_t;
 
 //G29 Racing Wheel (PS3/PS4 switch set to "PS3")
+//also G923 when in PS3 mode
 typedef struct TU_ATTR_PACKED {
   // byte 1: hat/buttons
   uint8_t hat : 4;
@@ -339,9 +340,14 @@ typedef struct TU_ATTR_PACKED {
   uint8_t shifter_x;
   uint8_t shifter_y;
 
-  uint8_t : 6; // unknown
-  uint8_t shifter_stick_down : 1;
   uint8_t : 1; // unknown
+  uint8_t pedal_disconnected : 1; // tested with a G923
+  uint8_t power_connected : 1; //(power or calibrated? , not sure) tested with a G923
+  uint8_t : 1; // unknown
+  uint8_t unknown1: 1; // unknown (0x1 on G923)
+  uint8_t : 1; // unknown
+  uint8_t shifter_stick_down : 1;
+  uint8_t unknown2: 1; // unknown (0x1 on G923)
 
 } g29_report_t;
 

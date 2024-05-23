@@ -22,7 +22,7 @@ const bool auto_mode = true;
 lg_wheel_output_type output_mode = WHEEL_T_G27;
 
 // force input wheel into specific compatibility mode
-// possible modes: NATIVE, AUTO, DF, DFP, DFGT, G25, G27, G29.
+// possible modes: NATIVE, AUTO, DF, DFP, DFGT, G25, G27, G29, G923.
 // NATIVE will force the wheel into it's native mode.
 // don't force a mode not supported by your wheel!
 // AUTO will try to best match with the output_mode, with fall back to NATIVE

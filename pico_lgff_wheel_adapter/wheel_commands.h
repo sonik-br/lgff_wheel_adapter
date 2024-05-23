@@ -63,3 +63,9 @@ static const struct init_mode_commands cmd_mode_g29 = {
    CMD_REVERT_MODE,                           /* Revert mode upon USB reset */
    0xf8, 0x09, 0x05, 0x01, 0x01, 0x00, 0x00}  /* Switch mode to G29 with detach */
 };
+
+static const struct init_mode_commands cmd_mode_g923 = {
+  2,
+  {CMD_DEACTIVATE_AUTO_CENTER,                /* De-activate Auto-Center */
+   0xf8, 0x09, 0x07, 0x01, 0x01, 0x00, 0x00}  /* Switch mode to G923 with detach */
+};
