@@ -69,7 +69,7 @@ typedef struct TU_ATTR_PACKED {
 typedef struct TU_ATTR_PACKED {
   uint8_t wheel;
   
-  uint8_t : 2; // padding? alwats zero
+  uint8_t : 2; // padding? always zero
   uint8_t L1 : 1;
   uint8_t R1 : 1;
   //no idea if the button mapping is correct.
@@ -103,53 +103,53 @@ typedef struct TU_ATTR_PACKED {
 
 // Driving Force
 typedef struct TU_ATTR_PACKED {
-    uint16_t wheel : 10;
-    uint8_t cross : 1;
-    uint8_t square : 1;
-    uint8_t circle : 1;
-    uint8_t triangle : 1;
-    uint8_t R2 : 1;
-    uint8_t L2 : 1;
+  uint16_t wheel : 10;
+  uint8_t cross : 1;
+  uint8_t square : 1;
+  uint8_t circle : 1;
+  uint8_t triangle : 1;
+  uint8_t R1 : 1;
+  uint8_t L1 : 1;
 
-    uint8_t R3 : 1;
-    uint8_t L3 : 1;
-    uint8_t select : 1;
-    uint8_t start : 1;
-    uint8_t R1 : 1; // right paddle
-    uint8_t L1 : 1; // left paddle
-    uint8_t pedal_connected : 1; // not sure. DFWireless reports as zero
-    uint8_t power_connected : 1; //not sure. DFWireless reports as zero
+  uint8_t R2 : 1;
+  uint8_t L2 : 1;
+  uint8_t select : 1;
+  uint8_t start : 1;
+  uint8_t R3 : 1;
+  uint8_t L3 : 1;
+  uint8_t pedal_connected : 1; // not sure. DFWireless reports as zero
+  uint8_t power_connected : 1; //not sure. DFWireless reports as zero
 
-    uint8_t pedals; // combined pedals
-    uint8_t hat : 4;
-    uint8_t : 1; // allways 0
-    uint8_t calibated : 1; //not sure (or ready to use?)
-    uint8_t : 1; // allways 0
-    uint8_t unknown : 1; // allways 1? DFWireless uses this as PS button
-    uint8_t gasPedal;
-    uint8_t brakePedal;
+  uint8_t pedals; // combined pedals
+  uint8_t hat : 4;
+  uint8_t : 1; // allways 0
+  uint8_t calibated : 1; //not sure (or ready to use?)
+  uint8_t : 1; // allways 0
+  uint8_t unknown : 1; // allways 1? DFWireless uses this as PS button
+  uint8_t gasPedal;
+  uint8_t brakePedal;
 } df_report_t;
 
 // Driving Force Pro (GT Force Pro)
 typedef struct TU_ATTR_PACKED {
-    uint16_t wheel : 14;
-    uint8_t cross : 1;
-    uint8_t square : 1;
+  uint16_t wheel : 14;
+  uint8_t cross : 1;
+  uint8_t square : 1;
+
+  uint8_t circle : 1;
+  uint8_t triangle : 1;
+  uint8_t R1 : 1;
+  uint8_t L1 : 1;
+  uint8_t R2 : 1;
+  uint8_t L2 : 1;
+  uint8_t select : 1;
+  uint8_t start : 1;
   
-    uint8_t circle : 1;
-    uint8_t triangle : 1;
-    uint8_t R1 : 1;
-    uint8_t L1 : 1;
-    uint8_t R2 : 1;
-    uint8_t L2 : 1;
-    uint8_t select : 1;
-    uint8_t start : 1;
-    
-    uint8_t R3 : 1;
-    uint8_t L3 : 1;
-    uint8_t gear_plus : 1;
-    uint8_t gear_minus : 1;
-    uint8_t hat : 4;
+  uint8_t R3 : 1;
+  uint8_t L3 : 1;
+  uint8_t gear_plus : 1;
+  uint8_t gear_minus : 1;
+  uint8_t hat : 4;
 
   uint8_t pedals; //combined pedals
   uint8_t gasPedal;
@@ -164,39 +164,40 @@ typedef struct TU_ATTR_PACKED {
 
 // Driving Force GT
 typedef struct TU_ATTR_PACKED {
-    uint8_t hat : 4;
-    uint8_t cross : 1;
-    uint8_t square : 1;
-    uint8_t circle : 1;
-    uint8_t triangle : 1;
-    
-    uint8_t R1 : 1;
-    uint8_t L1 : 1;
-    uint8_t R2 : 1;
-    uint8_t L2 : 1;
-    uint8_t select : 1;
-    uint8_t start : 1;
-    uint8_t R3 : 1;
-    uint8_t L3 : 1;
-    
-    uint8_t gear_plus : 1;
-    uint8_t gear_minus : 1;
-    uint8_t enter : 1;
-    uint8_t plus : 1;
-    uint8_t dial_cw : 1;
-    uint8_t dial_ccw : 1;
-    uint8_t minus : 1;
-    uint8_t horn : 1;
-    
-    uint8_t PS : 1;
-    uint8_t pedal_connected : 1;
-    uint8_t power_connected : 1;
-    uint8_t calibated : 1; //not sure (or ready to use?)
-    uint8_t unknown: 4; //always 0x5?
-    
-    uint16_t wheel : 16; //looks to be 14 bits. what could be the two other bits?
-    uint8_t gasPedal;
-    uint8_t brakePedal;
+  uint8_t hat : 4;
+  uint8_t cross : 1;
+  uint8_t square : 1;
+  uint8_t circle : 1;
+  uint8_t triangle : 1;
+  
+  uint8_t R1 : 1;
+  uint8_t L1 : 1;
+  uint8_t R2 : 1;
+  uint8_t L2 : 1;
+  uint8_t select : 1;
+  uint8_t start : 1;
+  uint8_t R3 : 1;
+  uint8_t L3 : 1;
+  
+  uint8_t gear_plus : 1;
+  uint8_t gear_minus : 1;
+  uint8_t enter : 1;
+  uint8_t plus : 1;
+  uint8_t dial_cw : 1;
+  uint8_t dial_ccw : 1;
+  uint8_t minus : 1;
+  uint8_t horn : 1;
+  
+  uint8_t PS : 1;
+  uint8_t pedal_connected : 1;
+  uint8_t power_connected : 1;
+  uint8_t calibated : 1; //not sure (or ready to use?)
+  uint8_t unknown: 4; //always 0x5?
+  
+  uint16_t wheel : 14;
+  uint8_t : 2;
+  uint8_t gasPedal;
+  uint8_t brakePedal;
 } dfgt_report_t;
 
 //G25 Racing Wheel
