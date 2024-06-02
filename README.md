@@ -21,6 +21,7 @@ Let me know if you can help.
 | G25 Racing Wheel                    | Yes (untested)             | Yes               |
 | G27 Racing Wheel                    | Yes                        | Yes               |
 | G29 Racing Wheel                    | Yes                        | No                |
+| G923 Racing Wheel (PS4)             | Yes                        | No                |
 | Speed Force Wireless                | Yes                        | Yes               |
 
 
