@@ -701,8 +701,14 @@ void loop() {
       cmd_mode = &cmd_mode_g29;
     else if (change_mode_to == G923)
       cmd_mode = &cmd_mode_g923;
-    else
-      cmd_mode = &cmd_mode_none;
+    else {
+      uint16_t vid, pid;
+      tuh_vid_pid_get(wheel_addr, &vid, &pid);
+      if (pid_g923 == pid) // Set range
+        cmd_mode = &cmd_mode_g923_range;
+      else
+        cmd_mode = &cmd_mode_none;
+    }
 
     if (last_millis == 0) { // force an initial delay
       last_millis = millis();
