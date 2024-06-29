@@ -14,7 +14,6 @@ enum lg_wheel_output_type {
 
 enum init_stage_status {
   DISCONNECTED,
-  READING_DESCRIPTOR,
   CONFIGURING_DONGLE,
   SENDING_CMDS,
   RESTARTING,

@@ -56,6 +56,10 @@ init_stage_status init_stage = DISCONNECTED;
 uint8_t cmd_buffer[7] = { 0x00 };
 volatile uint8_t leds_buffer = { 0x00 };
 
+#ifdef EXTERNAL_PEDAL_TYPE
+  uint32_t external_pedals_values = ~0x0;
+#endif
+
 // report to hold input from any wheel
 generic_report_t generic_report;
 
@@ -210,13 +214,7 @@ void reset_generic_report() {
   generic_report.shifter_y = 0x80;
 }
 
-void receive_device_descriptor(tuh_xfer_t *xfer) {
-  if (XFER_RESULT_SUCCESS != xfer->result) {
-    // failed to get device descriptor. query it again
-    tuh_descriptor_get_device(wheel_addr, &desc, 18, receive_device_descriptor, 0);
-    return;
-  }
-
+void handle_bcd_device(uint16_t vid, uint16_t pid, uint16_t bcdDevice) {
   /*
   Notes for G929:
   The Logitech G929 and G923 Playstation wheels start out by default in Playstation Force Feedback Mode. To switch to
@@ -227,22 +225,22 @@ void receive_device_descriptor(tuh_xfer_t *xfer) {
   Logitech G923 Playstation 0x30, 0xf8, 0x09, 0x05, 0x01
   */
 
-  uint16_t vid;
-  uint16_t pid;
-  tuh_vid_pid_get(wheel_addr, &vid, &pid);
+//  uint16_t vid;
+//  uint16_t pid;
+//  tuh_vid_pid_get(wheel_addr, &vid, &pid);
 
   // check if wheel is in compatibility or native mode
   if (pid_g923ps == pid) // G923 in PS mode
     change_mode_to = G923;
-  else if ( ((pid_df == pid) || (pid_dfp == pid) || (pid_g25 == pid)) && (0x1350 == (desc.bcdDevice & 0xfff0)) ) // G29 in compatibility mode
+  else if ( ((pid_df == pid) || (pid_dfp == pid) || (pid_g25 == pid)) && (0x1350 == (bcdDevice & 0xfff0)) ) // G29 in compatibility mode
     change_mode_to = G29;
-  else if ( ((pid_df == pid) || (pid_dfp == pid)) && (0x1300 == (desc.bcdDevice & 0xff00)) ) // DFGT in compatibility mode
+  else if ( ((pid_df == pid) || (pid_dfp == pid)) && (0x1300 == (bcdDevice & 0xff00)) ) // DFGT in compatibility mode
     change_mode_to = DFGT;
-  else if ( ((pid_df == pid) || (pid_dfp == pid) || (pid_g25 == pid)) && (0x1230 == (desc.bcdDevice & 0xfff0)) ) // G27 in compatibility mode
+  else if ( ((pid_df == pid) || (pid_dfp == pid) || (pid_g25 == pid)) && (0x1230 == (bcdDevice & 0xfff0)) ) // G27 in compatibility mode
     change_mode_to = G27;
-  else if ( ((pid_df == pid) || (pid_dfp == pid)) && (0x1200 == (desc.bcdDevice & 0xff00)) ) // G25 in compatibility mode
+  else if ( ((pid_df == pid) || (pid_dfp == pid)) && (0x1200 == (bcdDevice & 0xff00)) ) // G25 in compatibility mode
     change_mode_to = G25;
-  else if ( (pid_df == pid) && (0x1000 == (desc.bcdDevice & 0xf000)) ) // DFP in compatibility mode
+  else if ( (pid_df == pid) && (0x1000 == (bcdDevice & 0xf000)) ) // DFP in compatibility mode
     change_mode_to = DFP;
   else // native mode
     change_mode_to = NATIVE;
@@ -465,11 +463,19 @@ void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t idx, uint8_t const* report_desc,
 
     wheel_supports_cmd = (pid != pid_fgp);
 
-    // set next stage
-    init_stage = READING_DESCRIPTOR;
+    init_stage = DISCONNECTED;
 
     // Get Device Descriptor
-    tuh_descriptor_get_device(dev_addr, &desc, 18, receive_device_descriptor, 0);
+//    tuh_descriptor_get_device(dev_addr, &desc, 18, receive_device_descriptor, 0);
+    tusb_desc_device_t desc_device;
+    for (uint8_t i = 0; i < 5; ++i) {
+      if (tuh_descriptor_get_device(dev_addr, &desc_device, 18, NULL, 0)) {
+        handle_bcd_device(vid, pid, desc_device.bcdDevice);
+        break;
+      }
+      delay(10);
+    }
+      
     
     //set_led(HIGH);
     //tuh_hid_receive_report(dev_addr, idx);
@@ -489,9 +495,6 @@ void tuh_hid_umount_cb(uint8_t dev_addr, uint8_t idx) {
     
 //    tud_disconnect(); // disconnect to host
     reset_generic_report();
-
-    // tell the other core that the report was updated
-    rp2040.fifo.push_nb(1);
     
     set_led(LOW);
     #ifdef BOARD_RGB_PIN
@@ -514,11 +517,9 @@ void tuh_hid_report_received_cb(uint8_t dev_addr, uint8_t idx, uint8_t const* re
     // map the received report to generic_output
     map_input(report);
 
-    // now map the generic_output to the output_mode
-    map_output();
+//    // now map the generic_output to the output_mode
+//    map_output();
 
-    // tell the other core that the report was updated
-    rp2040.fifo.push_nb(1);
   }
 
   // receive next report
@@ -527,7 +528,6 @@ void tuh_hid_report_received_cb(uint8_t dev_addr, uint8_t idx, uint8_t const* re
 
 
 void setup() {
-  Serial1.end();
   Serial.end();
 
   rp2040.enableDoubleResetBootloader();
@@ -639,22 +639,52 @@ void setup() {
 
   usb_hid.setReportCallback(NULL, hid_set_report_callback);
 
+  // Leave Device disconnected until a wheel is connected in Host
   tud_disconnect();
   usb_hid.begin();
 //
 //  // wait until device mounted
 //  while ( !TinyUSBDevice.mounted() ) delay(1);
-  
+
+
+  // USB Host
+  uint32_t cpu_hz = clock_get_hz(clk_sys);
+  if ( cpu_hz != 120000000UL && cpu_hz != 240000000UL ) {
+    while ( !Serial ) delay(10);   // wait for native usb
+    Serial.printf("Error: CPU Clock = %lu, PIO USB require CPU clock must be multiple of 120 Mhz\r\n", cpu_hz);
+    Serial.printf("Change your CPU Clock to either 120 or 240 Mhz in Menu->CPU Speed \r\n");
+    while (1) delay(1);
+  }
+
+  pio_usb_configuration_t pio_cfg = PIO_USB_DEFAULT_CONFIG;
+  pio_cfg.pin_dp = PIN_USB_HOST_DP;
+
+#if defined(ARDUINO_RASPBERRY_PI_PICO_W)
+  /* https://github.com/sekigon-gonnoc/Pico-PIO-USB/issues/46 */
+  pio_cfg.sm_tx      = 3;
+  pio_cfg.sm_rx      = 2;
+  pio_cfg.sm_eop     = 3;
+  pio_cfg.pio_rx_num = 0;
+  pio_cfg.pio_tx_num = 1;
+  pio_cfg.tx_ch      = 9;
+#endif /* ARDUINO_RASPBERRY_PI_PICO_W */
+
+  USBHost.configure_pio_usb(1, &pio_cfg);
+
+  // run host stack on controller (rhport) 1
+  USBHost.begin(1);
 }
 
 void loop() {
   static uint8_t last_cmd_buffer[7] { 0x00 };
   static generic_report_t last_report { 0x00 };
-
-  //initialization
-
   static uint32_t last_millis = 0;
 
+  // TinyUSBDevice.task(); // no need to call here. Arduino Core handles this
+  
+  USBHost.task();
+
+  //initialization
 
   if (init_stage == CONFIGURING_DONGLE) { // initialize wii wireless dongle. todo check if command was success
 
@@ -784,63 +814,66 @@ void loop() {
     if (last_external_brake != external_brake_value)
       external_pedals_updated = true;
     last_external_brake = external_brake_value;
+    
+    external_pedals_values = (external_brake_value << 8) | external_gas_value;
 
-    if (external_pedals_updated) {
-      switch (output_mode) {
-        case WHEEL_T_FGP:
-          out_fgp_report.gasPedal = external_gas_value;
-          out_fgp_report.brakePedal = external_brake_value;
-          out_fgp_report.pedals = (~(out_fgp_report.brakePedal>>1) - ~(out_fgp_report.gasPedal>>1)) + 0x7f;
-          break;
-        case WHEEL_T_FFGP:
-          out_ffgp_report.gasPedal = external_gas_value;
-          out_ffgp_report.brakePedal = external_brake_value;
-          out_ffgp_report.pedals = (~(out_ffgp_report.brakePedal>>1) - ~(out_ffgp_report.gasPedal>>1)) + 0x7f;
-          break;
-        case WHEEL_T_DF:
-          out_df_report.gasPedal = external_gas_value;
-          out_df_report.brakePedal = external_brake_value;
-          out_df_report.pedals = (~(out_df_report.brakePedal>>1) - ~(out_df_report.gasPedal>>1)) + 0x7f;
-          break;
-        case WHEEL_T_DFP:
-          out_dfp_report.gasPedal = external_gas_value;
-          out_dfp_report.brakePedal = external_brake_value;
-          out_dfp_report.pedals = (~(out_dfp_report.brakePedal>>1) - ~(out_dfp_report.gasPedal>>1)) + 0x7f;
-          break;
-        case WHEEL_T_DFGT:
-          out_dfgt_report.gasPedal = external_gas_value;
-          out_dfgt_report.brakePedal = external_brake_value;
-          break;
-        case WHEEL_T_G25:
-          out_g25_report.gasPedal = external_gas_value;
-          out_g25_report.brakePedal = external_brake_value;
-          break;
-        case WHEEL_T_G27:
-          out_g27_report.gasPedal = external_gas_value;
-          out_g27_report.brakePedal = external_brake_value;
-          break;
-        case WHEEL_T_SFW:
-          out_sfw_report.gasPedal = external_gas_value;
-          out_sfw_report.brakePedal = external_brake_value;
-          break;
-      }
-      
-      //copy pedal data to other core
-      uint32_t external_pedals_values = (external_brake_value << 8) | external_gas_value;
-      rp2040.fifo.push_nb(external_pedals_values);
-    }
+//    if (external_pedals_updated) {
+//      switch (output_mode) {
+//        case WHEEL_T_FGP:
+//          out_fgp_report.gasPedal = external_gas_value;
+//          out_fgp_report.brakePedal = external_brake_value;
+//          out_fgp_report.pedals = (~(out_fgp_report.brakePedal>>1) - ~(out_fgp_report.gasPedal>>1)) + 0x7f;
+//          break;
+//        case WHEEL_T_FFGP:
+//          out_ffgp_report.gasPedal = external_gas_value;
+//          out_ffgp_report.brakePedal = external_brake_value;
+//          out_ffgp_report.pedals = (~(out_ffgp_report.brakePedal>>1) - ~(out_ffgp_report.gasPedal>>1)) + 0x7f;
+//          break;
+//        case WHEEL_T_DF:
+//          out_df_report.gasPedal = external_gas_value;
+//          out_df_report.brakePedal = external_brake_value;
+//          out_df_report.pedals = (~(out_df_report.brakePedal>>1) - ~(out_df_report.gasPedal>>1)) + 0x7f;
+//          break;
+//        case WHEEL_T_DFP:
+//          out_dfp_report.gasPedal = external_gas_value;
+//          out_dfp_report.brakePedal = external_brake_value;
+//          out_dfp_report.pedals = (~(out_dfp_report.brakePedal>>1) - ~(out_dfp_report.gasPedal>>1)) + 0x7f;
+//          break;
+//        case WHEEL_T_DFGT:
+//          out_dfgt_report.gasPedal = external_gas_value;
+//          out_dfgt_report.brakePedal = external_brake_value;
+//          break;
+//        case WHEEL_T_G25:
+//          out_g25_report.gasPedal = external_gas_value;
+//          out_g25_report.brakePedal = external_brake_value;
+//          break;
+//        case WHEEL_T_G27:
+//          out_g27_report.gasPedal = external_gas_value;
+//          out_g27_report.brakePedal = external_brake_value;
+//          break;
+//        case WHEEL_T_SFW:
+//          out_sfw_report.gasPedal = external_gas_value;
+//          out_sfw_report.brakePedal = external_brake_value;
+//          break;
+//      }
+//      
+//      external_pedals_values = (external_brake_value << 8) | external_gas_value;
+//    }
   #endif
 
 
   // input report was updated?
   bool report_was_updated = false;
-  if (rp2040.fifo.available()) {
-    report_was_updated = memcmp(&last_report, &generic_report, sizeof(generic_report));
+  if (memcmp(&last_report, &generic_report, sizeof(generic_report))) {
+    report_was_updated = true;
     memcpy(&last_report, &generic_report, sizeof(generic_report));
-    rp2040.fifo.clear();
   } else if (external_pedals_updated) {
     report_was_updated = true;
   }
+
+  // map generic_output to the output_mode
+  if (report_was_updated)
+    map_output();
 
   // send hid report to host
   if (report_was_updated && usb_hid.ready()) {
@@ -901,39 +934,6 @@ void loop() {
     }
   #endif
 
-}
-
-void setup1() {
-  uint32_t cpu_hz = clock_get_hz(clk_sys);
-  if ( cpu_hz != 120000000UL && cpu_hz != 240000000UL ) {
-    while ( !Serial ) delay(10);   // wait for native usb
-    Serial.printf("Error: CPU Clock = %lu, PIO USB require CPU clock must be multiple of 120 Mhz\r\n", cpu_hz);
-    Serial.printf("Change your CPU Clock to either 120 or 240 Mhz in Menu->CPU Speed \r\n");
-    while (1) delay(1);
-  }
-
-  pio_usb_configuration_t pio_cfg = PIO_USB_DEFAULT_CONFIG;
-  pio_cfg.pin_dp = PIN_USB_HOST_DP;
-
-#if defined(ARDUINO_RASPBERRY_PI_PICO_W)
-  /* https://github.com/sekigon-gonnoc/Pico-PIO-USB/issues/46 */
-  pio_cfg.sm_tx      = 3;
-  pio_cfg.sm_rx      = 2;
-  pio_cfg.sm_eop     = 3;
-  pio_cfg.pio_rx_num = 0;
-  pio_cfg.pio_tx_num = 1;
-  pio_cfg.tx_ch      = 9;
-#endif /* ARDUINO_RASPBERRY_PI_PICO_W */
-
-  USBHost.configure_pio_usb(1, &pio_cfg);
-
-  // run host stack on controller (rhport) 1
-  // Note: For rp2040 pico-pio-usb, calling USBHost.begin() on core1 will have most of the
-  // host bit-banging processing works done in core1 to free up core0 for other works
-  USBHost.begin(1);
-}
-void loop1() {
-  USBHost.task();
 }
 
 void map_input(uint8_t const* report) {
@@ -1316,11 +1316,8 @@ void map_output() {
     }
   }
 
-  //if using external pedals, override input. grab data from other core
+  //if using external pedals, override input.
   #ifdef EXTERNAL_PEDAL_TYPE
-    static uint32_t external_pedals_values = ~0x0;
-    while (rp2040.fifo.available())
-      external_pedals_values = rp2040.fifo.pop();
     generic_report.pedals_precision_16bits = false;
     generic_report.gasPedal_8 = external_pedals_values & 0xFF;
     generic_report.brakePedal_8 = (external_pedals_values >> 8) & 0xFF;
