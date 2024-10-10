@@ -34,6 +34,12 @@
 #if defined(EXTERNAL_PEDAL_TYPE) && (!defined(PEDAL_GAS) || !defined(PEDAL_BRAKE))
   #error Need to set PEDAL_GAS and PEDAL_BRAKE analog pins
 #endif
+#if !defined(USE_TINYUSB) || defined(USE_TINYUSB_HOST)
+  #error USB Stack must be configured as "Tools -> USB Stack -> Adafruit TinyUSB"
+#endif
+#if F_CPU != 120000000 && F_CPU != 240000000
+  #error PIO USB require CPU Speed must be 120 or 240 MHz
+#endif
 
 // USB Host object
 Adafruit_USBH_Host USBHost;
@@ -117,12 +123,12 @@ ffgp_report_t out_ffgp_report {
 //Driving Force
 df_report_t out_df_report {
   .wheel = 0x7f,
-  //.pedal_connected = 1,
-  //.power_connected = 1,
+  //.pedal_connected = 1, // drivehub: clear. need to confirm from real a device
+  //.power_connected = 1, // drivehub: set. need to confirm from real a device
   .pedals = 0x7f,
   .hat = 0x08,
-  .calibated = 1,
-  //.unknown = 1,
+  .calibated = 1, // drivehub: set
+  //.unknown = 1, // drivehub: set
   .gasPedal = 0xff,
   .brakePedal = 0xff
 };
@@ -190,6 +196,21 @@ sfw_report_t out_sfw_report {
   .brakePedal = 0xff
 };
 
+//Momo Force
+momofo_report_t out_momofo_report {
+  .wheel = 0x7f,
+  .pedals = 0x7f,
+  .gasPedal = 0xff,
+  .brakePedal = 0x00
+};
+
+//Momo Racing
+momora_report_t out_momora_report {
+  .wheel = 0x7f,
+  .pedals = 0x7f,
+  .gasPedal = 0xff,
+  .brakePedal = 0xff
+};
 
 void set_led(bool value) {
   #ifdef LED_BUILTIN
@@ -366,6 +387,13 @@ void hid_set_report_callback(uint8_t report_id, hid_report_type_t report_type, u
 //    //return;
 //  }
 
+
+// On Momo Racing, logitech profiler puts the device in raw mode. also sends longer commands
+// 0x07, 0x03, 0x89, 0x00, 0x00, 0x00, 0x00, 0x00, // reserved, do not use
+// 0x0b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // turn on Raw Mode
+// 0x09, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // led
+// On Momo Force it also sends some longer commands
+// 81, 0b, 82, 83, bb, 00, cc, 00,
   
   if(buffer[0] == 0xf8) { // Extended Command
     /*
@@ -385,6 +413,7 @@ void hid_set_report_callback(uint8_t report_id, hid_report_type_t report_type, u
     if (ext_cmd == 0x12) { // Set RPM LEDs
       // todo use memcpy?
       // todo check if connected device does not support leds, then don't send?
+      // todo momo force/racing does have two leds.
       leds_buffer = buffer[2];
     } else if (ext_cmd == 0x02 || ext_cmd == 0x03 || ext_cmd == 0x81) { // Wheel Range Change
       // skip for now. need to test
@@ -403,8 +432,9 @@ void hid_set_report_callback(uint8_t report_id, hid_report_type_t report_type, u
         new_mode = WHEEL_T_DFP;
         detach = true;
       } else if (ext_cmd == 0x06) { // Unknow command. Looks to be "Change Mode to Driving Force Pro without USB Detach"
-        new_mode = WHEEL_T_DFP;
-        detach = false;
+        return;
+        //new_mode = WHEEL_T_DFP;
+        //detach = false;
       } else if (ext_cmd == 0x10) { // Switch to G25 Identity with USB Detach
         new_mode = WHEEL_T_G25;
         detach = true;
@@ -441,12 +471,55 @@ void hid_set_report_callback(uint8_t report_id, hid_report_type_t report_type, u
       
       return;
     }
+  } else { // non extended command
+
+    uint8_t cmd = buffer[0] & 0xf;
+    
+    // todo handle spring effect differences for Logitech Formula Force GP and Driving Force series?
+    // friction only supported on DFP, G25, DFGT, G27 (also g29, g920?)
+    if (cmd == 0x00 || cmd == 0x01) { // Download Force, Download and Play Force
+      // code below does nothing... yet.
+      if (buffer[1] == 0x01) { // Spring
+        // todo check if connected devices needs translation
+        uint8_t k1 = (buffer[4] & 0x07);
+        uint8_t k2 = (buffer[4] & 0x70) >> 4;
+        if (k1 == 0x05)
+          k1 = 0x06;
+        else if (k1 == 0x06)
+          k1 = 0x05;
+        if (k2 == 0x05)
+          k2 = 0x06;
+        else if (k2 == 0x06)
+          k2 = 0x05;
+        //buffer[4] = (k2<<4) | (k1);
+      } else if (buffer[1] == 0x03) { // Auto-Centering Spring
+        uint8_t k1 = (buffer[3] & 0x07);
+        uint8_t k2 = (buffer[4] & 0x07);
+        if (k1 == 0x05)
+          k1 = 0x06;
+        else if (k1 == 0x06)
+          k1 = 0x05;
+        if (k2 == 0x05)
+          k2 = 0x06;
+        else if (k2 == 0x06)
+          k2 = 0x05;
+//        buffer[3] = k1;
+//        buffer[4] = k2;
+      } else if (buffer[1] == 0x0e) { // Friction
+      } else if (buffer[1] == 0x0b) { // High-Resolution Spring (all devices supports?)
+      } else if (buffer[1] == 0x0c) { // High-Resolution Damper (all devices supports?)
+      } else if (buffer[1] == 0x0d) { // High-Resolution Auto-Centering Spring (all devices supports?)
+      }
+    } // END Download Force, Download and Play Force
+    else if (cmd == 0x07) { // Unknown (seen on logitech profiler with momo racing)
+      return; // skip
+    } else if (cmd == 0x08) { // Normal mode
+      return; // skip
+    } else if (cmd == 0x0b) { // Raw mode
+      return; // skip
+    }
+
   }
-
-
-  // todo handle spring effect differences for Logitech Formula Force GP and Driving Force series?
-//  if ((buffer[0] == 0x00 || buffer[0] == 0x01) && buffer[1] == 0x01) { // Download Force, Download and Play Force, Spring
-//  }
 
   memcpy(cmd_buffer, buffer, sizeof(cmd_buffer));
 }
@@ -609,6 +682,20 @@ void setup() {
       TinyUSBDevice.setDeviceVersion(usb_g27_bcd_device_version); // Set bcdDevice version
       usb_hid.setReportDescriptor(desc_g27_hid_report, sizeof(desc_g27_hid_report));
       break;
+    case WHEEL_T_MOMOFO:
+      TinyUSBDevice.setID(0x046d, pid_momofo);
+      TinyUSBDevice.setProductDescriptor(usb_momoforce_string_product);
+      TinyUSBDevice.setVersion(usb_momoforce_bcd_version); // Set bcdUSB version e.g 1.0, 2.0, 2.1
+      TinyUSBDevice.setDeviceVersion(usb_momoforce_bcd_device_version); // Set bcdDevice version
+      usb_hid.setReportDescriptor(desc_momoforce_hid_report, sizeof(desc_momoforce_hid_report));
+      break;
+    case WHEEL_T_MOMORA:
+      TinyUSBDevice.setID(0x046d, pid_momora);
+      TinyUSBDevice.setProductDescriptor(usb_momoracing_string_product);
+      TinyUSBDevice.setVersion(usb_momoracing_bcd_version); // Set bcdUSB version e.g 1.0, 2.0, 2.1
+      TinyUSBDevice.setDeviceVersion(usb_momoracing_bcd_device_version); // Set bcdDevice version
+      usb_hid.setReportDescriptor(desc_momoracing_hid_report, sizeof(desc_momoracing_hid_report));
+      break;
     case WHEEL_T_SFW:
       TinyUSBDevice.setID(0x046d, pid_sfw);
       TinyUSBDevice.setProductDescriptor(usb_sfw_string_product);
@@ -647,15 +734,7 @@ void setup() {
 //  while ( !TinyUSBDevice.mounted() ) delay(1);
 
 
-  // USB Host
-  uint32_t cpu_hz = clock_get_hz(clk_sys);
-  if ( cpu_hz != 120000000UL && cpu_hz != 240000000UL ) {
-    while ( !Serial ) delay(10);   // wait for native usb
-    Serial.printf("Error: CPU Clock = %lu, PIO USB require CPU clock must be multiple of 120 Mhz\r\n", cpu_hz);
-    Serial.printf("Change your CPU Clock to either 120 or 240 Mhz in Menu->CPU Speed \r\n");
-    while (1) delay(1);
-  }
-
+  // USB Host (PIO)
   pio_usb_configuration_t pio_cfg = PIO_USB_DEFAULT_CONFIG;
   pio_cfg.pin_dp = PIN_USB_HOST_DP;
 
@@ -861,7 +940,6 @@ void loop() {
 //    }
   #endif
 
-
   // input report was updated?
   bool report_was_updated = false;
   if (memcmp(&last_report, &generic_report, sizeof(generic_report))) {
@@ -898,6 +976,12 @@ void loop() {
         break;
       case WHEEL_T_G27:
         usb_hid.sendReport(0, &out_g27_report, sizeof(out_g27_report));
+        break;
+      case WHEEL_T_MOMOFO:
+        usb_hid.sendReport(0, &out_momofo_report, sizeof(out_momofo_report));
+        break;
+      case WHEEL_T_MOMORA:
+          usb_hid.sendReport(0, &out_momora_report, sizeof(out_momora_report));
         break;
       case WHEEL_T_SFW:
         usb_hid.sendReport(0, &out_sfw_report, sizeof(out_sfw_report));
@@ -1190,6 +1274,52 @@ void map_input(uint8_t const* report) {
     generic_report.R1 = input_report->R1;
     generic_report.L1 = input_report->L1;
     
+  } else if (pid == pid_momofo) { // Momo Force
+
+    // map the received report to output report
+    momofo_report_t* input_report = (momofo_report_t*)report;
+
+    generic_report.wheel_precision = wheel_8bits;
+    generic_report.pedals_precision_16bits = false;
+    
+    generic_report.wheel_8 = input_report->wheel;
+    generic_report.gasPedal_8 = input_report->gasPedal;
+    generic_report.brakePedal_8 = ~input_report->brakePedal;
+
+    generic_report.hat = 0x8;
+    generic_report.cross = input_report->cross;
+    generic_report.square = input_report->square;
+    generic_report.circle = input_report->circle;
+    generic_report.triangle = input_report->triangle;
+    generic_report.R1 = input_report->R1;
+    generic_report.L1 = input_report->L1;
+    generic_report.select = input_report->select;
+    generic_report.start = input_report->start;
+    
+  } else if (pid == pid_momora) { // Momo Racing
+
+    // map the received report to output report
+    momora_report_t* input_report = (momora_report_t*)report;
+
+    generic_report.wheel_precision = wheel_8bits;
+    generic_report.pedals_precision_16bits = false;
+    
+    generic_report.wheel_8 = input_report->wheel;
+    generic_report.gasPedal_8 = input_report->gasPedal;
+    generic_report.brakePedal_8 = input_report->brakePedal;
+
+    generic_report.hat = 0x8;
+    generic_report.cross = input_report->cross;
+    generic_report.square = input_report->square;
+    generic_report.circle = input_report->circle;
+    generic_report.triangle = input_report->triangle;
+    generic_report.R1 = input_report->R1;
+    generic_report.L1 = input_report->L1;
+    generic_report.select = input_report->select;
+    generic_report.start = input_report->start;
+    generic_report.gear_minus = input_report->gear_minus;
+    generic_report.gear_plus = input_report->gear_plus;
+    
   } else if (pid == pid_sfw) { // Speed Force Wireless
 
     // map the received report to output report
@@ -1239,7 +1369,7 @@ void map_input(uint8_t const* report) {
     #endif
     
   }
-  // todo add input support for the momo
+
 }
 
 void map_output() {
@@ -1249,11 +1379,13 @@ void map_output() {
 
   switch (output_mode) {
     case WHEEL_T_FGP:
+    case WHEEL_T_MOMOFO:
       wheel_output_precision = wheel_8bits;
       break;
     case WHEEL_T_FFGP:
     case WHEEL_T_DF:
     case WHEEL_T_SFW:
+    case WHEEL_T_MOMORA:
       wheel_output_precision = wheel_10bits;
       break;
     case WHEEL_T_DFP:
@@ -1365,9 +1497,14 @@ void map_output() {
     case WHEEL_T_G27:
       map_g27_out(wheel, gas, brake, clutch);
       break;
+    case WHEEL_T_MOMOFO:
+      map_momofo_out(wheel, gas, brake, clutch);
+      break;
+    case WHEEL_T_MOMORA:
+      map_momora_out(wheel, gas, brake, clutch);
+      break;
     case WHEEL_T_SFW:
       map_sfw_out(wheel, gas, brake, clutch);
-      break;
   }
 }
 
@@ -1548,6 +1685,43 @@ void map_g27_out(uint16_t wheel, uint16_t gas, uint16_t brake, uint16_t clutch) 
   out_g27_report.shifter_6 = generic_report.shifter_6;
   out_g27_report.shifter_r = generic_report.shifter_r;
   out_g27_report.shifter_stick_down = generic_report.shifter_stick_down;
+}
+
+void map_momofo_out(uint16_t wheel, uint16_t gas, uint16_t brake, uint16_t clutch) {
+  out_momofo_report.wheel = wheel;
+  out_momofo_report.gasPedal = gas;
+  out_momofo_report.brakePedal = ~brake; // this is correct?
+  out_momofo_report.cross = generic_report.cross;
+  out_momofo_report.square = generic_report.square;
+  out_momofo_report.circle = generic_report.circle;
+  out_momofo_report.triangle = generic_report.triangle;
+  out_momofo_report.R1 = generic_report.R1;
+  out_momofo_report.L1 = generic_report.L1;
+  out_momofo_report.select = generic_report.select;
+  out_momofo_report.start = generic_report.start;
+
+  //combined pedals. mid: 0x7F. gas pulls to 0x0, brake pulls to 0xFF;
+  //out_momofo_report.pedals = (~(out_momofo_report.brakePedal>>1) - ~(out_momofo_report.gasPedal>>1)) + 0x7f;
+}
+
+void map_momora_out(uint16_t wheel, uint16_t gas, uint16_t brake, uint16_t clutch) {
+  out_momora_report.wheel = wheel;
+  out_momora_report.gasPedal = gas;
+  out_momora_report.brakePedal = brake; // this is correct?
+  out_momora_report.cross = generic_report.cross;
+  out_momora_report.square = generic_report.square;
+  out_momora_report.circle = generic_report.circle;
+  out_momora_report.triangle = generic_report.triangle;
+  out_momora_report.R1 = generic_report.R1;
+  out_momora_report.L1 = generic_report.L1;
+  out_momora_report.select = generic_report.select;
+  out_momora_report.start = generic_report.start;
+
+  out_dfgt_report.gear_minus = generic_report.gear_minus;
+  out_dfgt_report.gear_plus = generic_report.gear_plus;
+
+  //combined pedals. mid: 0x7F. gas pulls to 0x0, brake pulls to 0xFF;
+  //out_momora_report.pedals = (~(out_momora_report.brakePedal>>1) - ~(out_momora_report.gasPedal>>1)) + 0x7f;
 }
 
 void map_sfw_out(uint16_t wheel, uint16_t gas, uint16_t brake, uint16_t clutch) {

@@ -22,8 +22,8 @@ typedef struct TU_ATTR_PACKED {
   uint8_t select : 1;
   uint8_t start : 1;
   uint8_t horn : 1;
-  uint8_t gear_plus : 1;
-  uint8_t gear_minus : 1;
+  uint8_t gear_plus : 1;  // backward
+  uint8_t gear_minus : 1; // forward
   uint8_t enter : 1;
 
   uint8_t shifter_1 : 1;
@@ -147,13 +147,13 @@ typedef struct TU_ATTR_PACKED {
   
   uint8_t R3 : 1;
   uint8_t L3 : 1;
-  uint8_t gear_plus : 1;
-  uint8_t gear_minus : 1;
+  uint8_t gear_plus : 1;  // backward
+  uint8_t gear_minus : 1; // forward
   uint8_t hat : 4;
 
   uint8_t pedals; //combined pedals
-  uint8_t gasPedal;
-  uint8_t brakePedal;
+  uint8_t gasPedal;   // on 1102 version, bits 0,1 seems to be clear and bit 2 set
+  uint8_t brakePedal; // on 1102 version, bits 0,7 seems to be set
 
   uint8_t pedal_connected : 1;
   uint8_t power_connected : 1;
@@ -161,6 +161,18 @@ typedef struct TU_ATTR_PACKED {
   uint8_t calibated : 1; //not sure (or ready to use?)
   uint8_t unknown : 4; //always 1
 } dfp_report_t;
+// PCSX2: DFPRO
+// uint8_t pedal_connected : 1; // 1
+// uint8_t power_connected : 1; // 1
+// uint8_t unknown0: 1;         // 1
+// uint8_t calibated : 1;       // 1
+// uint8_t unknown : 4;         // F
+// PCSX2: DFPRO 1102
+// uint8_t pedal_connected : 1; // 1
+// uint8_t power_connected : 1; // 0
+// uint8_t unknown0: 1;         // 0
+// uint8_t calibated : 1;       // 0
+// uint8_t unknown : 4;         // 1
 
 // Driving Force GT
 typedef struct TU_ATTR_PACKED {
@@ -179,8 +191,8 @@ typedef struct TU_ATTR_PACKED {
   uint8_t R3 : 1;
   uint8_t L3 : 1;
   
-  uint8_t gear_plus : 1;
-  uint8_t gear_minus : 1;
+  uint8_t gear_plus : 1;  // backward
+  uint8_t gear_minus : 1; // forward
   uint8_t enter : 1;
   uint8_t plus : 1;
   uint8_t dial_cw : 1;
@@ -373,3 +385,45 @@ typedef struct TU_ATTR_PACKED {
   uint8_t gasPedal; // right paddle (released 0xff, pressed 0x00)
   uint8_t brakePedal; // left paddle (released 0xff, pressed 0x00)
 } sfw_report_t;
+
+//MOMO Force
+typedef struct TU_ATTR_PACKED {
+  uint16_t wheel : 10; // descriptor says it's 10 bits, but I could only send report as 8 bits
+  uint8_t L1 : 1;
+  uint8_t R1 : 1;
+  uint8_t square : 1;   // green  (top left)
+  uint8_t triangle : 1; // red    (top right)
+  uint8_t cross : 1;    // blue   (mid left)
+  uint8_t circle : 1;   // yellow (mid right)
+  uint8_t select : 1;   // while  (bottom left)
+  uint8_t start : 1;    // white  (bottom right)
+  uint8_t : 6; // unknown
+
+  uint8_t pedals; // combined pedals?
+  uint8_t gasPedal;
+  uint8_t brakePedal;
+  uint8_t : 8; // unknown
+} momofo_report_t;
+
+//MOMO Racing
+typedef struct TU_ATTR_PACKED {
+  uint16_t wheel : 10;
+  uint8_t L1 : 1;
+  uint8_t R1 : 1;
+
+  uint8_t square : 1;     // top left
+  uint8_t triangle : 1;   // top right
+  uint8_t cross : 1;      // mid left
+  uint8_t circle : 1;     // mid right
+  uint8_t select : 1;     // bottom left
+  uint8_t start : 1;      // bottom right
+  uint8_t gear_plus : 1;  // backward
+  uint8_t gear_minus : 1; // forward
+
+  uint8_t : 4; // unknown
+
+  uint8_t pedals; // combined pedals?
+  uint8_t gasPedal;
+  uint8_t brakePedal;
+  uint8_t : 8; // unknown
+} momora_report_t;

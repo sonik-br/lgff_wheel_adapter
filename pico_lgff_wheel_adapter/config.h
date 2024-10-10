@@ -40,4 +40,4 @@ const lg_wheel_type force_input_mode = AUTO;
 //#define PEDAL_BRAKE 27
 
 // WS2812 rgb led pin (comment out if not using)
-//#define BOARD_RGB_PIN 23
+//#define BOARD_RGB_PIN 23  // todo implement PIN_NEOPIXEL and NUM_NEOPIXEL for some boards

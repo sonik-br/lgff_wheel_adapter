@@ -9,7 +9,9 @@ enum lg_wheel_output_type {
   WHEEL_T_DFGT,
   WHEEL_T_G25,
   WHEEL_T_G27, //(need to test) endpoint size 16, interval 2
-  WHEEL_T_SFW
+  WHEEL_T_SFW,
+  WHEEL_T_MOMOFO,
+  WHEEL_T_MOMORA, // logitech profiler puts the wheel in raw mode and this is not implemented here
 };
 
 enum init_stage_status {

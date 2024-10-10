@@ -53,6 +53,8 @@ const uint8_t desc_fgp_hid_report[] = {
 const char usb_ffgp_string_product[] = "Logitech GT Force";
 const uint16_t usb_ffgp_bcd_version = 0x0100;
 const uint16_t usb_ffgp_bcd_device_version = 0x0000;
+// https://github.com/linuxhw/LsUSB/blob/master/Desktop/ASUSTek%20Computer/All/All%20Series/6AEFB4800FA5/FEDORA-37/6.1.9-200.FC37.X86_64/X86_64/004535FD1C#L13C4-L13C5
+//const uint16_t usb_ffgp_bcd_device_version = 0x0101; // need test
 
 const uint8_t desc_ffgp_hid_report[] = {
   0x05, 0x01,         /*  Usage Page (Desktop),               */
@@ -105,13 +107,13 @@ const uint16_t usb_df_bcd_version = 0x0100;
 const uint16_t usb_df_bcd_device_version = 0x0000;
 
 // Formula Force EX - uses different autocenter command
-//  const char usb_string_product[] = "Formula Force EX";
-//  const uint16_t usb_bcd_version = 0x0100;
+//  const char usb_string_product[] = "Formula Force EX"; // or "Logitech Formula Force RX"?
+//  const uint16_t usb_bcd_version = 0x0200;
 //  const uint16_t usb_bcd_device_version = 0x2100;
 
 // Driving Force EX
-//  const char usb_string_product[] = "Driving Force EX";
-//  const uint16_t usb_bcd_version = 0x0100;
+//  const char usb_string_product[] = "Driving Force EX"; // or "Logitech Driving Force EX"?
+//  const uint16_t usb_bcd_version = 0x0200;
 //  const uint16_t usb_bcd_device_version = 0x2000;
 
 // GT Force RX
@@ -193,7 +195,7 @@ const uint8_t desc_df_hid_report[] = {
 };
 
 //Driving Force Pro (GT Force Pro)
-const uint16_t usb_dfp_bcd_version = 0x0100;
+const uint16_t usb_dfp_bcd_version = 0x0110;
 const char usb_dfp_string_product[] = "Logitech Driving Force Pro";
 const uint16_t usb_dfp_bcd_device_version = 0x1106;
 //  const uint16_t usb_dfp_bcd_device_version = 0x1102;
@@ -252,7 +254,8 @@ const uint8_t desc_dfp_hid_report[] = {
 const uint16_t usb_dfgt_bcd_version = 0x0200;
 const char usb_dfgt_string_product[] = "Driving Force GT";
 const uint16_t usb_dfgt_bcd_device_version = 0x1322;
-//notes: starts in compatibility mode (pid 0xc294, bcd 0x1322)
+//const uint16_t usb_dfgt_bcd_device_version = 0x1326;
+//const uint16_t usb_dfgt_bcd_device_version = 0x1327;
 
 const uint8_t desc_dfgt_hid_report[] = {
   0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
@@ -377,6 +380,7 @@ const uint8_t desc_g25_hid_report[] = {
 const uint16_t usb_g27_bcd_version = 0x0200;
 const char usb_g27_string_product[] = "G27 Racing Wheel";
 const uint16_t usb_g27_bcd_device_version = 0x1238;
+//const uint16_t usb_g27_bcd_device_version = 0x1239;
 
 const uint8_t desc_g27_hid_report[] = {
   0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
@@ -628,5 +632,106 @@ const uint8_t desc_sfw_hid_report[] = {
   0x0A, 0xFF, 0xFF,  //   Usage (0xFFFF)
   0x95, 0x08,        //   Report Count (8)
   0xB1, 0x02,        //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+  0xC0,              // End Collection
+};
+
+//MOMO Force
+const uint16_t usb_momoforce_bcd_version = 0x0110; // no idea
+const char usb_momoforce_string_product[] = "MOMO Force"; // no idea
+const uint16_t usb_momoforce_bcd_device_version = 0x0000; // no idea
+
+const uint8_t desc_momoforce_hid_report[] = { // no idea
+  0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
+  0x09, 0x04,        // Usage (Joystick)
+  0xA1, 0x01,        // Collection (Application)
+  0xA1, 0x02,        //   Collection (Logical)
+  0x95, 0x01,        //     Report Count (1)
+  0x75, 0x0A,        //     Report Size (10)
+  0x15, 0x00,        //     Logical Minimum (0)
+  0x26, 0xFF, 0x03,  //     Logical Maximum (1023)
+  0x35, 0x00,        //     Physical Minimum (0)
+  0x46, 0xFF, 0x03,  //     Physical Maximum (1023)
+  0x09, 0x30,        //     Usage (X)
+  0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+  0x95, 0x08,        //     Report Count (8)
+  0x75, 0x01,        //     Report Size (1)
+  0x25, 0x01,        //     Logical Maximum (1)
+  0x45, 0x01,        //     Physical Maximum (1)
+  0x05, 0x09,        //     Usage Page (Button)
+  0x19, 0x01,        //     Usage Minimum (0x01)
+  0x29, 0x08,        //     Usage Maximum (0x08)
+  0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+  0x06, 0x00, 0xFF,  //     Usage Page (Vendor Defined 0xFF00)
+  0x09, 0x00,        //     Usage (0x00)
+  0x95, 0x06,        //     Report Count (6)
+  0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+  0x95, 0x01,        //     Report Count (1)
+  0x75, 0x08,        //     Report Size (8)
+  0x26, 0xFF, 0x00,  //     Logical Maximum (255)
+  0x46, 0xFF, 0x00,  //     Physical Maximum (255)
+  0x05, 0x01,        //     Usage Page (Generic Desktop Ctrls)
+  0x09, 0x31,        //     Usage (Y)
+  0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+  0x95, 0x03,        //     Report Count (3)
+  0x06, 0x00, 0xFF,  //     Usage Page (Vendor Defined 0xFF00)
+  0x09, 0x01,        //     Usage (0x01)
+  0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+  0xC0,              //   End Collection
+  0xA1, 0x02,        //   Collection (Logical)
+  0x09, 0x02,        //     Usage (0x02)
+  0x95, 0x07,        //     Report Count (7)
+  0x91, 0x02,        //     Output (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+  0xC0,              //   End Collection
+  0xC0,              // End Collection
+};
+
+//MOMO Racing
+//from https://github.com/TripleSpeeder/LTWheelConf/blob/master/report_descriptors/rdesc_MOMO_Racing_org.xml
+const uint16_t usb_momoracing_bcd_version = 0x0110;
+const char usb_momoracing_string_product[] = "MOMO Racing";
+const uint16_t usb_momoracing_bcd_device_version = 0x0019; //0x0111; //0x0001;//0x0019;
+
+const uint8_t desc_momoracing_hid_report[] = {
+  0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
+  0x09, 0x04,        // Usage (Joystick)
+  0xA1, 0x01,        // Collection (Application)
+  0xA1, 0x02,        //   Collection (Logical)
+  0x95, 0x01,        //     Report Count (1)
+  0x75, 0x0A,        //     Report Size (10)
+  0x15, 0x00,        //     Logical Minimum (0)
+  0x26, 0xFF, 0x03,  //     Logical Maximum (1023)
+  0x35, 0x00,        //     Physical Minimum (0)
+  0x46, 0xFF, 0x03,  //     Physical Maximum (1023)
+  0x09, 0x30,        //     Usage (X)
+  0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+  0x95, 0x0A,        //     Report Count (10)
+  0x75, 0x01,        //     Report Size (1)
+  0x25, 0x01,        //     Logical Maximum (1)
+  0x45, 0x01,        //     Physical Maximum (1)
+  0x05, 0x09,        //     Usage Page (Button)
+  0x19, 0x01,        //     Usage Minimum (0x01)
+  0x29, 0x0A,        //     Usage Maximum (0x0A)
+  0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+  0x06, 0x00, 0xFF,  //     Usage Page (Vendor Defined 0xFF00)
+  0x09, 0x00,        //     Usage (0x00)
+  0x95, 0x04,        //     Report Count (4)
+  0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+  0x95, 0x01,        //     Report Count (1)
+  0x75, 0x08,        //     Report Size (8)
+  0x26, 0xFF, 0x00,  //     Logical Maximum (255)
+  0x46, 0xFF, 0x00,  //     Physical Maximum (255)
+  0x05, 0x01,        //     Usage Page (Generic Desktop Ctrls)
+  0x09, 0x31,        //     Usage (Y)
+  0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+  0x95, 0x03,        //     Report Count (3)
+  0x06, 0x00, 0xFF,  //     Usage Page (Vendor Defined 0xFF00)
+  0x09, 0x01,        //     Usage (0x01)
+  0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+  0xC0,              //   End Collection
+  0xA1, 0x02,        //   Collection (Logical)
+  0x09, 0x02,        //     Usage (0x02)
+  0x95, 0x07,        //     Report Count (7)
+  0x91, 0x02,        //     Output (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+  0xC0,              //   End Collection
   0xC0,              // End Collection
 };
